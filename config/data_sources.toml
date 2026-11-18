@@ -34,7 +34,7 @@ verified = false
 instructions = """Submit the ANEW Researcher Information Form on the CSEA page, sign the User \
 Agreement and ask in writing whether commercial use is allowed. Low priority: Warriner and NRC \
 VAD cover the same ground. Save the ratings file(s) as CSV into data/raw/anew/."""
-expected = ["*.csv"]
+expected = ["**/*.csv"]
 notes = "single-source (search summary); host not reachable from the container."
 
 [[source]]
@@ -228,7 +228,7 @@ verified = false
 instructions = """Open the unige.ch CISA research-material page in a browser (it blocks scripts), \
 download the ISEAR databank, put the files in data/raw/isear/ and copy the stated terms into \
 docs/DATA_SOURCES.md. Unofficial HF copies tagged apache-2.0 are not authoritative."""
-expected = ["*"]
+expected = ["**/*"]
 
 [[source]]
 id = "dailydialog"
@@ -276,7 +276,7 @@ homepage = "https://ieee-dataport.org/open-access/emosurv-typing-biometric-keyst
 verified = false
 instructions = """Create or log in to a free IEEE account on ieee-dataport.org, open the EmoSurv \
 page, accept the licence, download the 4 CSV files and place them in data/raw/emosurv/."""
-expected = ["*.csv"]
+expected = ["**/*.csv"]
 notes = "single-source licence (search summary); host not allowlisted."
 
 # ---------------------------------------------------------------------------------- Russian
@@ -321,7 +321,7 @@ homepage = "https://www.labinform.ru/pub/rusentilex/index.htm"
 verified = false
 instructions = """Open the labinform.ru RuSentiLex page in a browser, download the lexicon into \
 data/raw/rusentilex/ and record the stated licence in docs/DATA_SOURCES.md."""
-expected = ["*"]
+expected = ["**/*"]
 
 # ------------------------------------------------------------------------- Armenian + Russian
 
@@ -354,7 +354,7 @@ homepage = "https://github.com/nigkal/ArmenianNLP"
 verified = false
 instructions = """No direct file URL is known yet (R1 only read the README). Clone \
 https://github.com/nigkal/ArmenianNLP and copy its lexicon files into data/raw/armeniannlp/."""
-expected = ["*"]
+expected = ["**/*"]
 
 [[source]]
 id = "armenian_news_sentiment"
@@ -368,4 +368,4 @@ homepage = "https://huggingface.co/datasets/Elen22/Armenian-news-sentiment-datas
 verified = false
 instructions = """Gated dataset: log in to Hugging Face, accept the share-contact-information \
 condition, then download the files into data/raw/armenian_news_sentiment/."""
-expected = ["*"]
+expected = ["**/*"]

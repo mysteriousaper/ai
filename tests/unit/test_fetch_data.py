@@ -366,3 +366,228 @@ def test_lock_roundtrip_and_validation(tmp_path: Path) -> None:
     path.write_text('{"version": 1, "files": {"a": {"y": "nothex"}}}')
     with pytest.raises(fd.ManifestError, match="sha256"):
         fd.load_lock(path)
+
+
+# --------------------------------------------------------------------------- extraction
+
+
+def make_zip(entries: dict[str, bytes], symlink: tuple[str, str] | None = None) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, data in entries.items():
+            zf.writestr(name, data)
+        if symlink is not None:
+            info = zipfile.ZipInfo(symlink[0])
+            info.external_attr = 0o120777 << 16
+            zf.writestr(info, symlink[1])
+    return buf.getvalue()
+
+
+def make_tar(entries: dict[str, bytes], links: dict[str, tuple[str, bytes]] | None = None) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        for name, data in entries.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+        for name, (target, kind) in (links or {}).items():
+            info = tarfile.TarInfo(name)
+            info.type = kind
+            info.linkname = target
+            tf.addfile(info)
+    return buf.getvalue()
+
+
+def test_zip_is_extracted_with_marker(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/d.zip"] = make_zip({"inner/x.txt": b"x", "y.txt": b"y"})
+    (source,) = load(tmp_path, auto_source(url=f"{base}/d.zip", dest="d.zip", extract=True))
+    data_dir = tmp_path / "raw"
+
+    result = fd.fetch_source(source, data_dir, {})
+
+    assert result.status == "ok", result.detail
+    assert (data_dir / "demo" / "inner" / "x.txt").read_bytes() == b"x"
+    assert (data_dir / "demo" / "d.zip.extracted").is_file()
+    assert fd.fetch_source(source, data_dir, {}).status == "skipped"
+
+
+def test_tar_gz_is_extracted(tmp_path: Path) -> None:
+    archive = tmp_path / "a.tar.gz"
+    archive.write_bytes(make_tar({"dir/x.csv": b"1,2"}))
+    names = fd.safe_extract(archive, tmp_path / "out")
+    assert names == ["dir/x.csv"]
+    assert (tmp_path / "out" / "dir" / "x.csv").read_bytes() == b"1,2"
+
+
+@pytest.mark.parametrize("evil", ["../evil.txt", "/abs/evil.txt", "a/../../evil.txt"])
+def test_zip_path_traversal_is_rejected(tmp_path: Path, evil: str) -> None:
+    archive = tmp_path / "evil.zip"
+    archive.write_bytes(make_zip({"ok.txt": b"ok", evil: b"pwned"}))
+    out = tmp_path / "deep" / "out"
+    with pytest.raises(fd.UnsafeArchiveError):
+        fd.safe_extract(archive, out)
+    assert not (tmp_path / "deep" / "evil.txt").exists()
+    assert not (out / "ok.txt").exists(), "nothing is written before validation passes"
+
+
+def test_zip_symlink_member_is_rejected(tmp_path: Path) -> None:
+    archive = tmp_path / "link.zip"
+    archive.write_bytes(make_zip({"ok.txt": b"ok"}, symlink=("link", "/etc/passwd")))
+    with pytest.raises(fd.UnsafeArchiveError, match="symlink"):
+        fd.safe_extract(archive, tmp_path / "out")
+
+
+@pytest.mark.parametrize("evil", ["../evil.txt", "/abs/evil.txt", "a/../../evil.txt"])
+def test_tar_path_traversal_is_rejected(tmp_path: Path, evil: str) -> None:
+    archive = tmp_path / "evil.tar.gz"
+    archive.write_bytes(make_tar({"ok.txt": b"ok", evil: b"pwned"}))
+    out = tmp_path / "deep" / "out"
+    with pytest.raises(fd.UnsafeArchiveError):
+        fd.safe_extract(archive, out)
+    assert not (tmp_path / "deep" / "evil.txt").exists()
+    assert not (out / "ok.txt").exists()
+
+
+@pytest.mark.parametrize(
+    ("target", "kind"),
+    [
+        ("/etc/passwd", tarfile.SYMTYPE),
+        ("../../outside", tarfile.SYMTYPE),
+        ("../outside", tarfile.LNKTYPE),
+    ],
+)
+def test_tar_escaping_link_is_rejected(tmp_path: Path, target: str, kind: bytes) -> None:
+    archive = tmp_path / "links.tar.gz"
+    archive.write_bytes(make_tar({"ok.txt": b"ok"}, links={"sub/link": (target, kind)}))
+    with pytest.raises(fd.UnsafeArchiveError):
+        fd.safe_extract(archive, tmp_path / "out")
+
+
+def test_tar_internal_symlink_is_allowed(tmp_path: Path) -> None:
+    archive = tmp_path / "ok.tar.gz"
+    archive.write_bytes(
+        make_tar({"a/x.txt": b"x"}, links={"a/y.txt": ("x.txt", tarfile.SYMTYPE)})
+    )
+    fd.safe_extract(archive, tmp_path / "out")
+    assert (tmp_path / "out" / "a" / "y.txt").read_bytes() == b"x"
+
+
+def test_unsafe_archive_fails_the_source(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/d.zip"] = make_zip({"../evil.txt": b"pwned"})
+    (source,) = load(tmp_path, auto_source(url=f"{base}/d.zip", dest="d.zip", extract=True))
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+    assert result.failed
+    assert "unsafe" in result.detail
+    assert not (tmp_path / "raw" / "evil.txt").exists()
+
+
+def test_dest_through_symlinked_dir_is_rejected(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/a.txt"] = b"hello"
+    (source,) = load(tmp_path, auto_source(url=f"{base}/a.txt", dest="sub/a.txt"))
+    data_dir = tmp_path / "raw"
+    (data_dir / "demo").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (data_dir / "demo" / "sub").symlink_to(outside)
+
+    result = fd.fetch_source(source, data_dir, {})
+
+    assert result.failed
+    assert "escapes" in result.detail
+    assert not (outside / "a.txt").exists()
+
+
+# --------------------------------------------------------------------------- manual + hf
+
+
+def test_manual_source_missing(tmp_path: Path) -> None:
+    (source,) = load(tmp_path, manual_source())
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+    assert result.status == "missing"
+    assert not result.failed
+    assert "data.csv" in result.detail
+    assert "Log in" in result.instructions
+    assert not (tmp_path / "raw" / "hand").exists(), "manual sources never create files"
+
+
+def test_manual_source_present_writes_source_json(tmp_path: Path) -> None:
+    (source,) = load(tmp_path, manual_source(expected='["data.csv", "**/*.txt"]'))
+    src = tmp_path / "raw" / "hand"
+    (src / "deep").mkdir(parents=True)
+    (src / "data.csv").write_bytes(b"a,b")
+    (src / "deep" / "n.txt").write_bytes(b"n")
+
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.status == "present"
+    meta = json.loads((src / "SOURCE.json").read_text())
+    assert meta["sha256s"] == {"data.csv": sha(b"a,b"), "deep/n.txt": sha(b"n")}
+    assert meta["urls"] == []
+
+
+def test_manual_source_never_downloads(tmp_path: Path, monkeypatch) -> None:
+    def no_network(*a: object, **k: object) -> None:
+        raise AssertionError("manual source tried the network")
+
+    monkeypatch.setattr(fd.urllib.request, "urlopen", no_network)
+    (source,) = load(tmp_path, manual_source())
+    assert fd.fetch_source(source, tmp_path / "raw", {}).status == "missing"
+
+
+def fake_snapshot(files: dict[str, bytes], calls: list[dict[str, object]]):
+    def snapshot(**kwargs: object) -> str:
+        calls.append(kwargs)
+        local = Path(str(kwargs["local_dir"]))
+        for rel, data in files.items():
+            (local / rel).parent.mkdir(parents=True, exist_ok=True)
+            (local / rel).write_bytes(data)
+        (local / ".cache" / "huggingface").mkdir(parents=True, exist_ok=True)
+        (local / ".cache" / "huggingface" / "meta").write_text("x")
+        return str(local)
+
+    return snapshot
+
+
+def test_hf_dataset_snapshot(tmp_path: Path) -> None:
+    (source,) = load(tmp_path, hf_source())
+    calls: list[dict[str, object]] = []
+    files = {"data/train.parquet": b"PAR1", "README.md": b"# card"}
+    lock = {"hfds": {"README.md": sha(b"# card")}}
+
+    result = fd.fetch_source(
+        source, tmp_path / "raw", lock, snapshot_download=fake_snapshot(files, calls)
+    )
+
+    assert result.status == "ok", result.detail
+    assert calls[0]["repo_id"] == "org/hfds"
+    assert calls[0]["repo_type"] == "dataset"
+    assert calls[0]["revision"] == "a" * 40
+    assert calls[0]["local_dir"] == str(tmp_path / "raw" / "hfds")
+    assert result.unpinned == ["data/train.parquet"]
+    meta = json.loads((tmp_path / "raw" / "hfds" / "SOURCE.json").read_text())
+    assert meta["revision"] == "a" * 40
+    assert set(meta["sha256s"]) == {"data/train.parquet", "README.md"}
+
+
+def test_hf_dataset_lock_mismatch_fails(tmp_path: Path) -> None:
+    (source,) = load(tmp_path, hf_source())
+    lock = {"hfds": {"README.md": sha(b"other")}}
+    result = fd.fetch_source(
+        source, tmp_path / "raw", lock, snapshot_download=fake_snapshot({"README.md": b"x"}, [])
+    )
+    assert result.failed
+    assert "mismatch" in result.detail
+
+
+def test_hf_dataset_error_is_reported(tmp_path: Path) -> None:
+    (source,) = load(tmp_path, hf_source())
+
+    def broken(**kwargs: object) -> str:
+        raise ConnectionError("no route to host")
+
+    result = fd.fetch_source(source, tmp_path / "raw", {}, snapshot_download=broken)
+    assert result.failed
+    assert "no route to host" in result.detail
