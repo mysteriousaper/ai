@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # allow running without installing the package
     sys.path.insert(0, str(REPO_ROOT))
 
-from engine.schemas import json_schemas  # noqa: E402
+from engine.schemas import json_schemas
 
 DEFAULT_OUT = REPO_ROOT / "docs" / "schemas"
 
