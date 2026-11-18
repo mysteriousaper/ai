@@ -19,6 +19,7 @@ seal is against adapters accidentally or casually bypassing the rule.
 import inspect
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable
+from types import MethodType
 from typing import Any, ClassVar, Literal
 
 from pydantic import Field
@@ -85,16 +86,18 @@ def build_safety_response(state: EmotionalStateObject, profile: UserProfile) -> 
 
 
 class _SealedSuggest:
-    """Data descriptor holding the sealed ``suggest``: instance attributes cannot shadow it."""
+    """Data descriptor for the sealed ``suggest``: instance attributes cannot shadow it.
 
-    def __init__(self, func: Callable[..., Any]) -> None:
-        self._func = func
-        self.__doc__ = func.__doc__
+    It holds no state, so there is nothing to retarget; it always binds the module-level
+    :func:`_sealed_suggest`.
+    """
+
+    __slots__ = ()
 
     def __get__(self, obj: object, owner: type | None = None) -> Any:
         if obj is None:
-            return self._func
-        return self._func.__get__(obj, owner)
+            return _sealed_suggest
+        return MethodType(_sealed_suggest, obj)
 
     def __set__(self, obj: object, value: object) -> None:
         raise AttributeError("Adapter.suggest is sealed (brief §10 safety rule)")
@@ -102,33 +105,74 @@ class _SealedSuggest:
     def __delete__(self, obj: object) -> None:
         raise AttributeError("Adapter.suggest is sealed (brief §10 safety rule)")
 
+    def __setattr__(self, attr: str, value: object) -> None:
+        raise AttributeError("Adapter.suggest is sealed (brief §10 safety rule)")
 
-# Set once, right after Adapter is defined; kept outside the metaclass so that reading it does
+
+# Set once, right after Adapter is defined; kept outside the metaclass so that reading them does
 # not trigger the descriptor protocol.
 _SEALED: _SealedSuggest | None = None
+_SEALED_GETATTRIBUTE: Callable[..., Any] | None = None
+
+# Metaclass hooks that, if overridden by a derived metaclass, could skip or undo the checks.
+_PROTECTED_META_HOOKS = (
+    "__new__",
+    "__init__",
+    "__call__",
+    "__setattr__",
+    "__delattr__",
+    "__getattribute__",
+)
+
+
+def _check_sealed(cls: type) -> None:
+    """Raise ``TypeError`` unless ``cls`` still resolves ``suggest`` and ``__getattribute__`` to
+    the core versions (via ``__mro__``, so mixins and ``type.__setattr__`` patches count)."""
+    if inspect.getattr_static(cls, "suggest", None) is not _SEALED:
+        raise TypeError(
+            f"{cls.__name__} must not override suggest(): the safety rule is part of the core"
+        )
+    if inspect.getattr_static(cls, "__getattribute__") is not _SEALED_GETATTRIBUTE:
+        raise TypeError(f"{cls.__name__} must not override __getattribute__ (would hide suggest)")
 
 
 class _AdapterMeta(ABCMeta):
+    def __init_subclass__(mcls, **kwargs: Any) -> None:
+        # A derived metaclass could skip __new__'s check or reopen __setattr__; refuse it.
+        super().__init_subclass__(**kwargs)
+        overridden = [h for h in _PROTECTED_META_HOOKS if h in mcls.__dict__]
+        if overridden:
+            raise TypeError(
+                f"metaclass {mcls.__name__} must not override {', '.join(overridden)}: "
+                "they enforce the brief §10 safety rule"
+            )
+
     def __new__(
         mcls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], **kwargs: Any
     ) -> "_AdapterMeta":
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         if _SEALED is not None:  # i.e. cls is a subclass of Adapter
-            if inspect.getattr_static(cls, "suggest", None) is not _SEALED:
-                raise TypeError(
-                    f"{name} must not override suggest(): the safety rule is part of the core"
-                )
-            if inspect.getattr_static(cls, "__getattribute__") is not object.__getattribute__:
-                raise TypeError(f"{name} must not override __getattribute__ (would hide suggest)")
+            _check_sealed(cls)
         return cls
 
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
+        # Re-check on every instantiation: catches class decorators and type.__setattr__ patches
+        # made after class creation.
+        _check_sealed(cls)
+        return super().__call__(*args, **kwargs)
+
+    def __getattribute__(cls, attr: str) -> Any:
+        if attr == "suggest":  # Sub.suggest(obj, ...) stays sealed even if the dict was patched
+            return _sealed_suggest
+        return super().__getattribute__(attr)
+
     def __setattr__(cls, attr: str, value: Any) -> None:
-        if attr == "suggest":
+        if attr in ("suggest", "__getattribute__"):
             raise TypeError("Adapter.suggest is sealed (brief §10 safety rule)")
         super().__setattr__(attr, value)
 
     def __delattr__(cls, attr: str) -> None:
-        if attr == "suggest":
+        if attr in ("suggest", "__getattribute__"):
             raise TypeError("Adapter.suggest is sealed (brief §10 safety rule)")
         super().__delattr__(attr)
 
@@ -158,7 +202,15 @@ class Adapter(metaclass=_AdapterMeta):
     def adapt(self, state: EmotionalStateObject, profile: UserProfile) -> DomainSuggestion:
         """Map a (non-flagged) state to a domain suggestion. Never called when flagged."""
 
-    suggest = _SealedSuggest(_sealed_suggest)
+    suggest = _SealedSuggest()
+
+    def __getattribute__(self, attr: str) -> Any:
+        # Resolve ``suggest`` to the core version even if a class ``__dict__`` was patched with
+        # ``type.__setattr__`` after creation (that bypasses the metaclass ``__setattr__``).
+        if attr == "suggest":
+            return MethodType(_sealed_suggest, self)
+        return object.__getattribute__(self, attr)
 
 
 _SEALED = Adapter.__dict__["suggest"]
+_SEALED_GETATTRIBUTE = Adapter.__dict__["__getattribute__"]

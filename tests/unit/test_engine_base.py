@@ -36,7 +36,9 @@ class EchoEngine(SignalEngine):
 
 def _input(language: str | None = "en") -> EngineInput:
     ctx = MessageContext(
-        session_id="s", message_index=0, timestamp=datetime(2026, 1, 1, tzinfo=UTC),
+        session_id="s",
+        message_index=0,
+        timestamp=datetime(2026, 1, 1, tzinfo=UTC),
         language=language,
     )
     return EngineInput(text="hello", context=ctx)

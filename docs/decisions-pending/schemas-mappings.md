@@ -89,7 +89,12 @@ For the orchestrator to merge into `docs/DECISIONS.md`. Each: decision, alternat
   `suggest` is not the core one (this also catches mixins earlier in the MRO) or that overrides
   `__getattribute__`. Assigning or deleting `suggest` on a class raises `TypeError`, and on an
   instance raises `AttributeError`. `suggest` treats any `safety_flag` value other than literal
-  `False` as set (fail-safe for `model_construct`). It requires a real `EmotionalStateObject`
+  `False` as set (fail-safe for `model_construct`). Hardened against casual bypasses:
+  `Adapter.__getattribute__` and the metaclass's `__getattribute__` always resolve `suggest` to
+  the core function (so a `type.__setattr__` patch of a class dict does not win), every
+  instantiation re-checks the class (catches decorators and post-creation patches), the sealed
+  descriptor is stateless, and a metaclass derived from the adapter metaclass may not override
+  `__new__`, `__init__`, `__call__`, `__setattr__`, `__delattr__` or `__getattribute__`. It requires a real `EmotionalStateObject`
   and checks that `adapt` returned a `DomainSuggestion`.
 - **Alternatives:** `typing.final` alone (static only, so it would not stop a runtime override);
   `__init_subclass__` checks (miss mixins and later patching).
