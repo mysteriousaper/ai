@@ -1,6 +1,6 @@
 # Emotion Engine: working rules
 
-Brief: `PROJECT_BRIEF.md`. State: Phases 0–2 done (see README status, docs/). Next: Phase 3, engines A→C→B→F→E→D.
+Brief: `PROJECT_BRIEF.md`. State: Phases 0–2 done + preprocessing (`engine/preprocessing/pipeline.py`, tested). Next: Phase 3, engines A→C→B→F→E→D.
 
 ## Zero money
 - No paid APIs, licences or compute. Engine E (appraisal) is **local only**: a zero-shot NLI model (`MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli`, MIT) plus a DistilRoBERTa classifier on EmpatheticDialogues. Keep the Claude API path as an optional, off-by-default stub.
@@ -16,4 +16,5 @@ Brief: `PROJECT_BRIEF.md`. State: Phases 0–2 done (see README status, docs/). 
 - Reports: short tables, no long prose. Stop at the end of each engine with a 5-line summary.
 
 ## Commands
-`uv sync` · `make test` · `uv run python scripts/fetch_data.py` (data is git-ignored; re-run in a new container) · `uv run python scripts/export_schema.py`
+The environment setup script already runs `uv sync` + `fetch_data.py` in new containers (log: /tmp/fetch_data.log); only re-run if data/ is missing.
+`make test` · `uv run python scripts/export_schema.py`

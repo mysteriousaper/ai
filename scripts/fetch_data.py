@@ -113,6 +113,7 @@ MODEL_IDS = {
     "sentence-transformers/all-MiniLM-L6-v2": ("Apache-2.0", "commercial-OK", "Engine F English embeddings"),
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": ("Apache-2.0", "commercial-OK", "Engine F multilingual embeddings (ru/hy)"),
     "distilroberta-base": ("Apache-2.0", "commercial-OK", "Backbone for our own fine-tune + VAD head"),
+    "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli": ("MIT", "commercial-OK", "Engine E local zero-shot appraisal (multilingual)"),
 }
 
 MANUAL = [
