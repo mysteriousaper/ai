@@ -278,6 +278,11 @@ def test_interrupted_download_leaves_no_partial_file(tmp_path: Path, server) -> 
     assert not list(data_dir.rglob("*.part"))
 
 
+def test_user_agent_avoids_blocked_token() -> None:
+    # saifmohammad.com (NRC lexicons, SemEval-2018) answers 406 to "urllib" user agents.
+    assert "urllib" not in fd.USER_AGENT.lower()
+
+
 def test_http_error_is_reported_clearly(tmp_path: Path, server) -> None:
     base, _ = server
     (source,) = load(tmp_path, auto_source(url=f"{base}/missing.txt"))

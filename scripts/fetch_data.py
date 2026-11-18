@@ -48,7 +48,8 @@ SOURCE_META = "SOURCE.json"
 LOCK_VERSION = 1
 CHUNK_SIZE = 1 << 16
 DEFAULT_TIMEOUT = 60.0
-USER_AGENT = "emotion-engine-fetch-data/0.1 (+python-urllib)"
+# saifmohammad.com answers 406 to any User-Agent containing "urllib" (checked 2026-11-18).
+USER_AGENT = "emotion-engine-fetch-data/0.1"
 
 _ID_RE = re.compile(r"^[a-z0-9_]+$")
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
