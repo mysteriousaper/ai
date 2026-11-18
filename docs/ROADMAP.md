@@ -1,0 +1,76 @@
+# Wiymood AI: roadmap and task list
+
+Tick boxes as work lands. One session = one block below. Rules: see CLAUDE.md.
+
+## Tomorrow: Session 1, Phase 3 engine A (lexicon) + engine C (stylometric)
+
+Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
+
+### 0. Warm-up (5 min)
+- [ ] Check `data/raw/` and `data/models/` exist (else check `/tmp/fetch_data.log`, re-run `scripts/fetch_data.py`)
+- [ ] `make test` is green (89 tests)
+
+### 1. Shared evaluation helpers: `eval/metrics.py`
+- [ ] macro/micro/per-label F1, ROC-AUC (multi-label)
+- [ ] Pearson r, CCC, MAE for VAD
+- [ ] bootstrap 95% CI (fixed seed, 1,000 resamples)
+- [ ] `eval/datasets.py`: loaders returning canonical labels / [-1, 1] VAD for GoEmotions test, EmoBank test split, SemEval EI-reg (intensity)
+- [ ] property tests: CCC(x, x) = 1, CI contains the point estimate, metrics in range
+
+### 2. Engine A, lexicon: `engine/engines/lexicon.py`
+- [ ] `scripts/build_lexicons.py`: NRC VAD v2.1 (+ multi-word expressions) and EmoLex → compact `data/processed/lexicon_en.parquet`
+- [ ] Token lookup on lemma, longest multi-word match first
+- [ ] Rules from preprocessing: negation flips valence (×−0.74, VADER constant), dampens arousal; booster scales; after-"but" tokens weighted 1.5×, before 0.5×; CAPS / "!!!" raise arousal
+- [ ] EmoLex 8 emotions → canonical probabilities (via the inverse of the Plutchik table)
+- [ ] `confidence` from matched-token count; `coverage` = matched / content tokens
+- [ ] Behavioural tests: negation flips sign; "sad" < "very sad" < "devastated" (intensity); swapping names or cities leaves the output unchanged; lowercase / no punctuation / 1 typo gives a similar output
+- [ ] Evaluate vs VADER baseline: EmoBank valence r/CCC, GoEmotions coarse (Ekman) F1 → `eval/reports/lexicon.md`
+
+### 3. Engine C, stylometric: `engine/engines/stylometric.py`
+- [ ] Features: first-person singular rate, absolutist words (19-word list), past/future tense ratio (spaCy morphology), hedges vs certainty words, question rate, length, type-token ratio, emoji, punctuation intensity, Empath top categories
+- [ ] Output = features + weak VAD (small ridge model trained on EmoBank train split) + low confidence
+- [ ] Tests: every feature on hand-made sentences; empty / emoji-only text does not crash
+- [ ] Evaluate: EmoBank r/CCC vs the mean-prediction baseline → `eval/reports/stylometric.md`
+
+### 4. Wrap-up
+- [ ] ruff + full tests green, commit, push
+- [ ] 5-line summary per engine; update CLAUDE.md "State"
+
+## Session 2: engine B (transformer)
+- [ ] Wrap `SamLowe/roberta-base-go_emotions` (v0); per-label thresholds tuned on validation
+- [ ] GoEmotions test: macro/micro F1, ROC-AUC, CIs; latency per message on CPU
+- [ ] VAD head: ridge on frozen embeddings → EmoBank (cheap); fine-tune DistilRoBERTa only if time allows (background, 5k rows first)
+- [ ] Behavioural tests (shared suite from Session 1) → `eval/reports/transformer.md`
+
+## Session 3: engine F (semantic map)
+- [ ] `scripts/build_cluster_map.py`: MiniLM embeddings (GoEmotions train) → UMAP → HDBSCAN → agglomerative over centroids
+- [ ] Label each node (dominant emotions + top words); purity / NMI vs labels; seed stability
+- [ ] Engine: nearest leaf + path + k nearest neighbourhoods → `eval/reports/semantic_cluster.md`
+
+## Session 4: engine E (appraisal, local)
+- [ ] Zero-shot NLI over the 16 event types + 7 needs + agent (multilingual MiniLM)
+- [ ] Fallback classifier: DistilRoBERTa on EmpatheticDialogues prompts → event type (5k subset first)
+- [ ] Evidence spans (sentence with the highest entailment); merge safety with `engine/safety.py`
+- [ ] Claude API path: stub, off by default
+- [ ] Evaluate on the ED test split → `eval/reports/appraisal.md`
+
+## Session 5: engine D (keystrokes), needs EmoSurv CSVs from you
+- [ ] Feature extractor (speed, dwell, flight, pauses > 2 s, backspace ratio, bursts, time to first key)
+- [ ] Personal baseline z-scores (Welford); validate on EmoSurv → `eval/reports/keystroke.md`
+
+## Sessions 6–7: Phase 4, integration
+- [ ] Weighted fusion → stacking LR + temperature scaling; ECE + reliability plot
+- [ ] Ablation table (each engine alone, plus combinations) with CIs
+- [ ] Temporal: baseline, EMA, Kalman (HMM only if it wins); synthetic sad → neutral → happy test
+- [ ] FastAPI "Wiymood AI": `/analyze`, `/session/{id}/message`, `/session/{id}/pattern`, `DELETE /user/{id}/data`
+- [ ] Latency < 300 ms/message (without engine E); `make eval` → `eval/reports/SUMMARY.md`
+
+## Sessions 8–9: Phase 5 UI + study
+- [ ] Wiymood AI chat (Next.js), keystroke categories only, hide-panel toggle, SAM self-report < 10 s
+- [ ] SQLite storage + export + delete
+- [ ] You: 2 weeks, 150+ messages
+- [ ] Analysis script + personal calibration → `eval/reports/PERSONAL_STUDY.md`
+
+## Waiting on you
+- [ ] EmoSurv CSVs (before Session 5)
+- [ ] Decide: SQLite or Supabase; Next.js or Gradio; study languages (before Session 8)
