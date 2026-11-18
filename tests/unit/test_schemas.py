@@ -334,3 +334,23 @@ def test_safety_flag_with_reason() -> None:
 def test_safety_flag_must_be_a_real_bool() -> None:
     with pytest.raises(ValidationError):
         S.EmotionalStateObject.model_validate(eso_dict(safety_flag="yes"))
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"text": "SECRET user message"},  # missing context: error used to echo the whole dict
+        "SECRET user message",  # not a dict at all
+    ],
+)
+def test_validation_errors_do_not_echo_raw_text(bad: Any) -> None:
+    with pytest.raises(ValidationError) as info:
+        S.EngineInput.model_validate(bad)
+    assert "SECRET" not in str(info.value)
+    assert "SECRET" not in repr(info.value)
+
+
+def test_json_validation_errors_do_not_echo_raw_text() -> None:
+    with pytest.raises(ValidationError) as info:
+        S.EngineInput.model_validate_json('{"text": "SECRET user message"}')
+    assert "SECRET" not in str(info.value)

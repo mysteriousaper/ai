@@ -64,7 +64,10 @@ For the orchestrator to merge into `docs/DECISIONS.md`. Each: decision, alternat
 - **Keystroke timestamps** are milliseconds on a monotonic clock (`performance.now()`), `>= 0`,
   with `up_ts >= down_ts`. `KeyCategory` adds `digit`, `modifier` and `other` to the brief's six.
 - **`EngineInput.text` has `repr=False`**, so the raw message is left out of `repr()`, logs and
-  tracebacks (§1.8).
+  tracebacks (§1.8). Every model also sets `hide_input_in_errors=True`, because a
+  `ValidationError` message otherwise echoes the input (a missing `context` printed the whole
+  dict, text included). `ValidationError.errors()` / `.json()` still carry `input`, so the API
+  layer must call them with `include_input=False` (FastAPI's default 422 body echoes it).
 - **`EngineOutput.features` is numeric only**, keyed by identifier-like names
   (`^[A-Za-z0-9_.:-]{1,64}$`), so free user text cannot be stored there. Text-derived
   explanations go in `EmotionalStateObject.explanations[].top_features` instead.

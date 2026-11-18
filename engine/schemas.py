@@ -45,7 +45,14 @@ FeatureName = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.:\-]{1,64}$")]
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, validate_assignment=True)
+    # hide_input_in_errors: a ValidationError's message would otherwise echo the offending input,
+    # e.g. a missing field shows the whole dict including EngineInput.text (brief §1.8).
+    model_config = ConfigDict(
+        extra="forbid",
+        allow_inf_nan=False,
+        validate_assignment=True,
+        hide_input_in_errors=True,
+    )
 
 
 # --- enums ------------------------------------------------------------------------------------
