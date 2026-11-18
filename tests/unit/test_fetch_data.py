@@ -331,7 +331,7 @@ def test_download_removes_part_on_any_exception(tmp_path: Path, monkeypatch) -> 
 
         read1 = read
 
-    monkeypatch.setattr(fd.urllib.request, "urlopen", lambda *a, **k: Boom())
+    monkeypatch.setattr(fd, "_open_url", lambda *a, **k: Boom())
     dest = tmp_path / "x.bin"
     with pytest.raises(KeyboardInterrupt):
         fd.download("http://127.0.0.1/x", dest, timeout=1)
@@ -570,7 +570,7 @@ def test_manual_source_never_downloads(tmp_path: Path, monkeypatch) -> None:
     def no_network(*a: object, **k: object) -> None:
         raise AssertionError("manual source tried the network")
 
-    monkeypatch.setattr(fd.urllib.request, "urlopen", no_network)
+    monkeypatch.setattr(fd, "_open_url", no_network)
     (source,) = load(tmp_path, manual_source())
     assert fd.fetch_source(source, tmp_path / "raw", {}).status == "missing"
 
@@ -696,7 +696,7 @@ def test_cli_dry_run_touches_nothing(tmp_path: Path, server, monkeypatch, capsys
     def no_network(*a: object, **k: object) -> None:
         raise AssertionError("dry run used the network")
 
-    monkeypatch.setattr(fd.urllib.request, "urlopen", no_network)
+    monkeypatch.setattr(fd, "_open_url", no_network)
     assert run_cli(manifest, data_dir, "--dry-run", "--record-checksums") == 0
     assert not data_dir.exists()
     assert not fd.lock_path_for(manifest).exists()
@@ -742,6 +742,18 @@ def test_slow_trickle_download_hits_overall_deadline(tmp_path: Path, server) -> 
         fd.download(f"{base}/slow.bin", dest, timeout=2, deadline=0.5)
     assert time.monotonic() - started < 2.0
     assert not dest.exists()
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("target", ["{base}/a.txt", "ftp://127.0.0.1/a.txt"])
+def test_redirect_to_non_https_is_refused(tmp_path: Path, server, target: str) -> None:
+    base, handler = server
+    handler.routes["/a.txt"] = b"hello"
+    handler.redirects["/r"] = target.format(base=base)
+    dest = tmp_path / "a.txt"
+    with pytest.raises(fd.FetchError, match="https"):
+        fd.download(f"{base}/r", dest, timeout=2)
+    assert handler.hits.get("/a.txt", 0) == 0, "the non-https target is never requested"
     assert not list(tmp_path.iterdir())
 
 

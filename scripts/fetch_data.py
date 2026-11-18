@@ -27,6 +27,7 @@ import tarfile
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from collections.abc import Callable, Iterable, Sequence
@@ -374,6 +375,26 @@ def resolve_inside(base: Path, relative: str) -> Path:
 # --------------------------------------------------------------------------- download
 
 
+class _HttpsOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to an https URL (urllib would also follow http and ftp)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        target = urllib.parse.urljoin(req.full_url, newurl)
+        if urllib.parse.urlsplit(target).scheme.lower() != "https":
+            raise FetchError(
+                f"refusing redirect from {req.full_url} to non-https URL {target} (HTTP {code})"
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_HttpsOnlyRedirectHandler)
+
+
+def _open_url(request: urllib.request.Request, timeout: float) -> Any:
+    """Open ``request``; redirects are followed only to https URLs."""
+    return _OPENER.open(request, timeout=timeout)
+
+
 def download(
     url: str,
     dest: Path,
@@ -396,7 +417,7 @@ def download(
     received = 0
     give_up_at = time.monotonic() + deadline
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response, open(part, "wb") as out:
+        with _open_url(request, timeout) as response, open(part, "wb") as out:
             length_header = response.headers.get("Content-Length")
             # read1 returns after one socket read, so the deadline is checked even when a
             # server trickles bytes (read(n) would block until n bytes arrived).
