@@ -13,3 +13,4 @@ trackio/
 .env
 *.sqlite
 *.db
+data/models/

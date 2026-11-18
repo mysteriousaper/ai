@@ -39,14 +39,24 @@ Python 3.11.15 via `uv`, Node 22. Licences below are read from installed package
 
 | Item | Reason |
 |---|---|
-| superpowers plugin, Hugging Face skills | Plugins can't be installed from a cloud session (`/plugin` is local CLI only). Install on your machine if you run Claude Code locally. |
-| Hugging Face MCP, HF Hub access | `huggingface.co` blocked by environment network policy. **Skipped by your decision**; needed before Phase 1 dataset/model fetch and Phase 3 Engine B. |
+| Hugging Face MCP | Not needed: HF Hub reached directly via `huggingface_hub` + the vetted `hf-cli` skill. |
+| superpowers `brainstorming` visual server | Copied but not used (spawns a local web server; markdown workflow is enough). |
+| HF `community-evals`, `llm-trainer`, cloud/SageMaker skills | Target GPU/vLLM/HF Jobs (paid); not applicable on CPU. |
 | GitHub MCP | Connector failed to connect (proxy 403). Plain `git push` to `mysteriousaper/ai` works. |
 | Context7 MCP | Not configured; low value vs. cost. Ask if you want it. |
 | Supabase MCP | Deferred to Phase 5 per brief. |
 | External community skills (awesome-* lists) | Skipped to save credits; no gap that built-ins don't cover yet. |
 
-## Network blockers found
+## External skills (vetted, installed in `.claude/skills/`)
 
-- `huggingface.co` — blocked (needed later).
-- `download.pytorch.org` — blocked, so torch comes from PyPI (CUDA build, ~6 GB venv; runs on CPU fine).
+Copied into the repo so they travel with it. Each folder carries its upstream LICENSE.
+
+| Skill | Source (commit) | Licence | Stars / activity | Code review | Why |
+|---|---|---|---|---|---|
+| brainstorming, writing-plans, test-driven-development, systematic-debugging, verification-before-completion | [obra/superpowers](https://github.com/obra/superpowers) @ 5291c2b | MIT | ~320k ★, commit 2026-11-03 | Markdown instructions; only script is brainstorming's localhost server (own random token, timing-safe compare, loads a logo image). No credential access or obfuscation. | Plan → TDD → verify workflow from the brief |
+| hf-cli, huggingface-datasets, huggingface-trackio, train-sentence-transformers, huggingface-gradio | [huggingface/skills](https://github.com/huggingface/skills) @ 22f0b46 | Apache-2.0 | ~11k ★, commit 2026-11-17 | Markdown + example training scripts; no subprocess/network calls beyond the HF libraries; no credential handling. | Data fetch, experiment tracking, engine F embedding fine-tune, Phase 5 Gradio UI option |
+
+## Network
+
+This repo runs in its own cloud environment **"mysteriousaper-ai (emotion-engine)"**, which allows: Hugging Face (+ `us/eu.aws.cdn.hf.co` weight CDN), saifmohammad.com (NRC), dl.fbaipublicfiles.com (EmpatheticDialogues), zenodo, ieee-dataport, springer static content, storage.googleapis.com, github.com, download.pytorch.org.
+`scripts/fetch_data.py` sets `HF_HUB_DISABLE_XET=1` because the Xet CAS hosts are not reliable through the proxy.

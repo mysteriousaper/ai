@@ -336,6 +336,7 @@ dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
     { name = "emoji" },
+    { name = "empath" },
     { name = "en-core-web-sm" },
     { name = "fastapi" },
     { name = "hdbscan" },
@@ -367,6 +368,7 @@ requires-dist = [
     { name = "accelerate", specifier = ">=0.33" },
     { name = "datasets", specifier = ">=2.20" },
     { name = "emoji", specifier = ">=2.12" },
+    { name = "empath", specifier = ">=0.89" },
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "fastapi", specifier = ">=0.112" },
     { name = "hdbscan", specifier = ">=0.8.38" },
@@ -392,6 +394,15 @@ dev = [
     { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.6" },
 ]
+
+[[package]]
+name = "empath"
+version = "0.89"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d2/84/a5de61a99252f60d705d7982b3648db517a704c89fa7629d3d3637a6e604/empath-0.89.tar.gz", hash = "sha256:91283d9b0233e0cb32c765b9f6274228d20dba9758fae1875e0fb83e4871c40b", size = 57627, upload-time = "2016-06-06T17:07:58.576Z" }
 
 [[package]]
 name = "en-core-web-sm"

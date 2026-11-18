@@ -11,4 +11,4 @@ make env       # print compute environment
 
 Docs: [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Data sources](docs/DATA_SOURCES.md) · [Research](docs/RESEARCH.md) · [Tools](docs/TOOLS.md)
 
-**Status:** Phase 0 complete — environment + skeleton.
+**Status:** Phase 1 complete — data fetched (`uv run python scripts/fetch_data.py`), research + licences documented.
