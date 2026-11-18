@@ -60,3 +60,26 @@ Each entry: decision, alternatives considered, why. Newest last.
   Default environment is shared by all your repos, so it stays untouched.
 - **Note:** `www.unige.ch` (ISEAR) answers 403 to scripts through its own bot protection, so
   ISEAR may need a manual download in Phase 1.
+
+## ADR-0009: Multi-agent workflow (researcher, verifier, builder, bug-hunter, tester)
+- **Decision:** each phase runs through project agents defined in `.claude/agents/`:
+  researchers in parallel, then a verifier, then builders (each in its own git worktree), then a
+  bug-hunter and a tester per builder branch. The main session orchestrates, merges and holds
+  the checkpoint with you.
+- **Alternatives:** install ECC wholesale (rejected: 56 hooks are minified inline Node scripts
+  that run on every shell command and can't be audited properly; it also overlaps with
+  superpowers); single-agent work (cheaper, but no independent checking).
+- **Why:** you asked for it, and independent verification suits a project whose main risk is
+  confident-sounding wrong claims (licences, metrics). Prompts adapted from ECC (MIT) with
+  attribution in `THIRD_PARTY_NOTICES.md`. Researchers run on a smaller model to keep cost down.
+
+## ADR-0010: Video research through claude-video's Gemini engine
+- **Decision:** vendor `skills/watch` from bradautomates/claude-video (MIT, pinned commit in
+  `.claude/skills/watch/VENDORED.md`) and run it only through `scripts/watch.sh`, which forces
+  the Gemini engine.
+- **Alternatives:** local engine (YouTube and its video servers are unreachable from the cloud
+  session); captions only (YouTube often blocks cloud servers); no videos.
+- **Why:** you chose it. Gemini fetches public YouTube URLs itself, so the container needs only
+  `generativelanguage.googleapis.com`. The API key is stored as a proxy-injected secret on the
+  `emotion-engine` environment, never in the repo or chat. **Only public video URLs and research
+  questions go to Google; never user or study data.**

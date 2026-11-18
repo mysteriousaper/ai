@@ -11,7 +11,12 @@ whose code runs locally, code read before use (brief §2.2.4).
 | huggingface-skills | huggingface/skills | Apache-2.0 | ~11k / 2026-11 | Pre-installed. Skills work; its MCP server needs your Hugging Face authorisation | hf-cli, datasets, trackio, Gradio/Spaces, training, community evals |
 | Anthropic skills (skill-creator, xlsx, pdf, docx) | anthropics/skills | Mixed: example skills Apache-2.0; document skills source-available under Anthropic's terms | ~197k / 2026-11 | Pre-installed | skill-creator for our own skills; xlsx/pdf for reports |
 | K-Dense-AI/claude-scientific-skills | GitHub | MIT | popular, active | **Not installed** | 125+ skills, mostly bio/chem. The ML/statistics parts duplicate what we need, and the whole collection would bloat every session's context. Revisit only if evaluation work needs a specific one. |
+| bradautomates/claude-video (`watch` skill) | GitHub, commit 03ceb42 | MIT | ~21k / 2026-09 | **Vendored** in `.claude/skills/watch/` (code read in full; standard-library Python; network only to Gemini/Groq/OpenAI when configured). Startup hook not used. Run via `scripts/watch.sh` (Gemini engine) | Researchers watch public talks/tutorials |
+| affaan-m/ECC | GitHub | MIT | ~306k / 2026-11 | **Not installed.** 56 hooks are minified inline Node scripts that would run on every shell command and can't be audited properly; also overlaps with superpowers. Five agent/skill prompts adapted into `.claude/agents/` (read in full; plain markdown) | Checklists for research, verification, ML review, silent failures, test coverage |
 | Awesome lists (ComposioHQ, travisvn, BehiSecc awesome-claude-skills; punkpeye/awesome-mcp-servers) | GitHub | lists only | active | Scanned, nothing installed | No emotion/NLP-specific skill beyond Hugging Face and Context7 |
+
+## Project agents (`.claude/agents/`, ADR-0009)
+`researcher` (smaller model), `verifier`, `builder`, `bug-hunter`, `tester`.
 
 ## Our own project skills (planned)
 `emotion-eval`, `add-new-engine` and `dataset-license-check`, created with skill-creator at the
