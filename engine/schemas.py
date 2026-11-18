@@ -365,11 +365,26 @@ EXPORTED_MODELS: dict[str, type[BaseModel]] = {
 }
 
 
+def _close_pattern_maps(node: Any) -> None:
+    """Pydantic renders ``dict[<pattern str>, V]`` as ``patternProperties`` only, which leaves
+    keys that do not match the pattern unconstrained. Pydantic itself rejects them, so close the
+    map (otherwise free text could pass through e.g. ``features`` keys for non-Python clients)."""
+    if isinstance(node, dict):
+        if "patternProperties" in node:
+            node.setdefault("additionalProperties", False)
+        for v in node.values():
+            _close_pattern_maps(v)
+    elif isinstance(node, list):
+        for v in node:
+            _close_pattern_maps(v)
+
+
 def json_schemas() -> dict[str, dict[str, Any]]:
     """JSON Schemas (draft 2020-12, validation mode) for the exported models, keyed by file stem."""
     out: dict[str, dict[str, Any]] = {}
     for stem, model in EXPORTED_MODELS.items():
         schema = model.model_json_schema(mode="validation")
+        _close_pattern_maps(schema)
         out[stem] = {"$schema": JSON_SCHEMA_DIALECT, **schema}
     return out
 

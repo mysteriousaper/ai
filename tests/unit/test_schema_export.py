@@ -49,3 +49,24 @@ def test_schema_rejects_unknown_emotion_labels_and_extra_fields() -> None:
     assert len(eo["$defs"]["EmotionLabel"]["enum"]) == 28
     eso = json_schemas()["emotional_state_object"]
     assert eso["properties"]["schema_version"]["const"] == "0.1"
+
+
+def _walk(node: object) -> list[dict[str, object]]:
+    found: list[dict[str, object]] = []
+    if isinstance(node, dict):
+        found.append(node)
+        for v in node.values():
+            found.extend(_walk(v))
+    elif isinstance(node, list):
+        for v in node:
+            found.extend(_walk(v))
+    return found
+
+
+def test_pattern_keyed_maps_reject_other_keys_in_json_schema() -> None:
+    """patternProperties alone leaves non-matching keys unconstrained; Pydantic rejects them,
+    so the JSON Schema must too (EngineOutput.features: no free text in keys)."""
+    for stem, schema in json_schemas().items():
+        for node in _walk(schema):
+            if "patternProperties" in node:
+                assert node.get("additionalProperties") is False, stem

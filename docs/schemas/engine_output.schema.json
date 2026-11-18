@@ -131,7 +131,8 @@
         }
       },
       "title": "Features",
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false
     },
     "confidence": {
       "maximum": 1.0,
