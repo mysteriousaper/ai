@@ -1,0 +1,42 @@
+# --- Sensitive / large data: never committed (brief §1.8, §3) ---
+data/*
+!data/README.md
+*.sqlite
+*.sqlite3
+user_data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Experiment tracking (local only)
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Model caches / weights
+models/
+*.safetensors
+*.bin
+*.onnx
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node (ui/, Phase 5)
+node_modules/
+.next/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

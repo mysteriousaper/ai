@@ -1,0 +1,66 @@
+[project]
+name = "emotion-engine"
+version = "0.0.1"
+description = "Text-first Emotion Inference Engine: emotions, VAD, situation, need and pattern from what and how people write."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # ML core (CPU-only torch, see [tool.uv.sources])
+    "torch>=2.5",
+    "transformers>=4.46",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+    "sentence-transformers>=3.2",
+    "scikit-learn>=1.5",          # includes sklearn.cluster.HDBSCAN (ADR-0004)
+    "scipy>=1.14",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "umap-learn>=0.5.7",
+    # NLP preprocessing
+    "spacy>=3.8",
+    "en-core-web-sm",
+    "emoji>=2.12",
+    "lingua-language-detector>=2.0",  # language ID incl. Armenian (ADR-0005)
+    "vadersentiment>=3.3.2",          # baseline only
+    # Schemas + API
+    "pydantic>=2.9",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    # Experiment tracking, local only (ADR-0006)
+    "mlflow>=2.17",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "hypothesis>=6.115",
+    "ruff>=0.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["engine", "api"]
+
+# torch only from the CPU index; everything else from PyPI.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "network: needs internet (model downloads); deselect with -m 'not network'",
+    "slow: takes more than a few seconds",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
