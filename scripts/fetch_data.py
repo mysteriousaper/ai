@@ -491,25 +491,40 @@ def _check_totals(archive: Path, count: int, total: int) -> None:
         )
 
 
-def safe_extract(archive: Path, target: Path) -> list[str]:
+def _guard(archive: Path, target: Path, name: str, protected: frozenset[Path]) -> Path:
+    """Resolve member ``name`` inside ``target``; refuse it if it would hit a protected path."""
+    path = resolve_inside(target, name)
+    if path in protected:
+        raise UnsafeArchiveError(
+            f"{archive.name}: member {name!r} would overwrite protected file {path.name}"
+        )
+    return path
+
+
+def safe_extract(
+    archive: Path, target: Path, protected: Iterable[Path] = ()
+) -> list[str]:
     """Extract a .zip / .tar.gz / .tgz into ``target`` after validating every member.
 
     Rejects absolute paths, ``..``, links that escape (or any zip symlink) and device files
     *before* writing anything; tar extraction additionally runs with ``filter="data"``.
     Archives over ``MAX_EXTRACT_MEMBERS`` members or ``MAX_EXTRACT_BYTES`` uncompressed bytes
     are refused (zipfile never yields more than a member's declared ``file_size``).
+    No member (or link target) may resolve to ``archive`` itself or to a path in
+    ``protected``; tar members may not be written through a link the archive itself created.
     Returns the member names extracted.
     """
     target.mkdir(parents=True, exist_ok=True)
+    guarded = frozenset(Path(p).resolve() for p in (archive, *protected))
     name = archive.name.lower()
     if name.endswith(".zip"):
-        return _extract_zip(archive, target)
+        return _extract_zip(archive, target, guarded)
     if name.endswith((".tar.gz", ".tgz")):
-        return _extract_tar(archive, target)
+        return _extract_tar(archive, target, guarded)
     raise FetchError(f"don't know how to extract {archive.name}")
 
 
-def _extract_zip(archive: Path, target: Path) -> list[str]:
+def _extract_zip(archive: Path, target: Path, protected: frozenset[Path]) -> list[str]:
     try:
         with zipfile.ZipFile(archive) as zf:
             infos = zf.infolist()
@@ -518,14 +533,14 @@ def _extract_zip(archive: Path, target: Path) -> list[str]:
                 _check_member(info.filename, archive)
                 if stat.S_ISLNK(info.external_attr >> 16):
                     raise UnsafeArchiveError(f"{archive.name}: symlink member {info.filename!r}")
-                resolve_inside(target, info.filename.rstrip("/"))
+                _guard(archive, target, info.filename.rstrip("/"), protected)
             zf.extractall(target)
             return [info.filename for info in infos]
     except zipfile.BadZipFile as exc:
         raise FetchError(f"{archive.name} is not a valid zip: {exc}") from None
 
 
-def _extract_tar(archive: Path, target: Path) -> list[str]:
+def _extract_tar(archive: Path, target: Path, protected: frozenset[Path]) -> list[str]:
     try:
         with tarfile.open(archive, "r:gz") as tf:
             for count, _ in enumerate(tf, start=1):  # stream: stop early on a header bomb
@@ -533,11 +548,20 @@ def _extract_tar(archive: Path, target: Path) -> list[str]:
                     _check_totals(archive, count, 0)
             members = tf.getmembers()
             _check_totals(archive, len(members), sum(m.size for m in members if m.isreg()))
+            links: set[PurePosixPath] = set()  # link members created so far
+            regular: set[PurePosixPath] = set()  # regular-file members seen so far
             for member in members:
                 if member.issparse():
                     raise UnsafeArchiveError(f"{archive.name}: sparse member {member.name!r}")
                 _check_member(member.name, archive)
-                resolve_inside(target, member.name.rstrip("/"))
+                _guard(archive, target, member.name.rstrip("/"), protected)
+                norm = PurePosixPath(os.path.normpath(member.name))
+                # tarfile writes *through* an existing link: a member at or below a link this
+                # archive created could land on any file the link points at.
+                if any(p in links for p in (norm, *norm.parents)):
+                    raise UnsafeArchiveError(
+                        f"{archive.name}: member {member.name!r} is written through a link"
+                    )
                 if member.isdev():
                     raise UnsafeArchiveError(f"{archive.name}: device member {member.name!r}")
                 if member.issym() or member.islnk():
@@ -552,6 +576,16 @@ def _extract_tar(archive: Path, target: Path) -> list[str]:
                         raise UnsafeArchiveError(
                             f"{archive.name}: link {member.name!r} -> {link!r} escapes"
                         )
+                    if member.islnk() and PurePosixPath(joined) not in regular:
+                        raise UnsafeArchiveError(
+                            f"{archive.name}: hard link {member.name!r} -> {link!r} does not "
+                            "point at an earlier file in the archive"
+                        )
+                    if joined != ".":
+                        _guard(archive, target, joined, protected)
+                    links.add(norm)
+                elif member.isreg():
+                    regular.add(norm)
             tf.extractall(target, filter="data")
             return [m.name for m in members]
     except tarfile.FilterError as exc:
@@ -656,6 +690,15 @@ def fetch_source(
         )
 
 
+def _bookkeeping_paths(source: Source, src_dir: Path) -> list[Path]:
+    """Files an archive member must never overwrite: SOURCE.json and every dest's family."""
+    paths = [src_dir / SOURCE_META]
+    for spec in source.files:
+        dest = src_dir / spec.dest
+        paths += [dest, *(dest.with_name(dest.name + s) for s in (".part", ".bad", ".extracted"))]
+    return paths
+
+
 def _fetch_auto(
     source: Source,
     src_dir: Path,
@@ -694,7 +737,7 @@ def _fetch_auto(
         if spec.extract:
             marker = target.with_name(target.name + ".extracted")
             if fetched or not marker.is_file() or marker.read_text().strip() != digest:
-                safe_extract(target, target.parent)
+                safe_extract(target, target.parent, protected=_bookkeeping_paths(source, src_dir))
                 marker.write_text(digest + "\n", encoding="utf-8")
                 changed = True
         shas[spec.dest] = digest

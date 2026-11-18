@@ -786,6 +786,85 @@ def test_extraction_caps_are_sane() -> None:
     assert 1_000 <= fd.MAX_EXTRACT_MEMBERS <= 1_000_000
 
 
+def _two_file_archive_source(base: str, archive: str) -> str:
+    return auto_source(url=f"{base}/other.txt", dest="other.txt") + f"""
+[[source.files]]
+url = "{base}/{archive}"
+dest = "{archive}"
+extract = true
+"""
+
+
+@pytest.mark.parametrize(
+    "member", ["d.zip", "d.zip.extracted", "SOURCE.json", "other.txt", "other.txt.extracted"]
+)
+def test_zip_member_cannot_overwrite_bookkeeping(tmp_path: Path, server, member: str) -> None:
+    base, handler = server
+    handler.routes["/other.txt"] = b"other"
+    handler.routes["/d.zip"] = make_zip({"ok.txt": b"ok", member: b"pwned"})
+    (source,) = load(tmp_path, _two_file_archive_source(base, "d.zip"))
+    src = tmp_path / "raw" / "demo"
+    src.mkdir(parents=True)
+    (src / "SOURCE.json").write_text("{}")
+
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.failed
+    assert "protected" in result.detail
+    assert (src / "d.zip").read_bytes() == handler.routes["/d.zip"]
+    assert (src / "other.txt").read_bytes() == b"other"
+    assert b"pwned" not in (src / "SOURCE.json").read_bytes()
+    assert not (src / "ok.txt").exists(), "nothing is written before validation passes"
+
+
+@pytest.mark.parametrize(
+    "links",
+    [
+        # write through an archive symlink to a directory
+        [("d", tarfile.SYMTYPE, "."), ("d/SOURCE.json", b"", b"pwned")],
+        # symlink to a protected file, then a regular member of the same name
+        [("s", tarfile.SYMTYPE, "SOURCE.json"), ("s", b"", b"pwned")],
+        # hard link to the archive itself, then a regular member of the same name
+        [("h", tarfile.LNKTYPE, "d.tar.gz"), ("h", b"", b"pwned")],
+        # hard link to a file that is not in the archive (here: another dest)
+        [("h2", tarfile.LNKTYPE, "other.txt")],
+    ],
+)
+def test_tar_links_cannot_overwrite_bookkeeping(tmp_path: Path, server, links) -> None:
+    base, handler = server
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        for name, kind, payload in links:
+            info = tarfile.TarInfo(name)
+            if kind == b"":
+                info.size = len(payload)
+                tf.addfile(info, io.BytesIO(payload))
+            else:
+                info.type = kind
+                info.linkname = payload
+                tf.addfile(info)
+    handler.routes["/other.txt"] = b"other"
+    handler.routes["/d.tar.gz"] = buf.getvalue()
+    (source,) = load(tmp_path, _two_file_archive_source(base, "d.tar.gz"))
+    src = tmp_path / "raw" / "demo"
+    src.mkdir(parents=True)
+    (src / "SOURCE.json").write_text("{}")
+
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.failed, result.detail
+    assert (src / "d.tar.gz").read_bytes() == handler.routes["/d.tar.gz"]
+    assert (src / "other.txt").read_bytes() == b"other"
+    assert b"pwned" not in (src / "SOURCE.json").read_bytes()
+
+
+def test_tar_hardlink_to_earlier_member_is_allowed(tmp_path: Path) -> None:
+    archive = tmp_path / "ok.tar.gz"
+    archive.write_bytes(make_tar({"a/x.txt": b"x"}, links={"a/y.txt": ("a/x.txt", tarfile.LNKTYPE)}))
+    fd.safe_extract(archive, tmp_path / "out")
+    assert (tmp_path / "out" / "a" / "y.txt").read_bytes() == b"x"
+
+
 # --------------------------------------------------------------------------- network
 
 
