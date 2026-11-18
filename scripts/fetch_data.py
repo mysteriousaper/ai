@@ -24,6 +24,7 @@ import re
 import stat
 import sys
 import tarfile
+import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -48,6 +49,9 @@ SOURCE_META = "SOURCE.json"
 LOCK_VERSION = 1
 CHUNK_SIZE = 1 << 16
 DEFAULT_TIMEOUT = 60.0
+# Wall-clock cap for one file: --timeout bounds each read, so a server that trickles bytes
+# just inside it would otherwise stall the run forever.
+DEFAULT_DEADLINE = 3600.0
 # saifmohammad.com answers 406 to any User-Agent containing "urllib" (checked 2026-11-18).
 USER_AGENT = "emotion-engine-fetch-data/0.1"
 
@@ -376,25 +380,35 @@ def download(
     *,
     timeout: float = DEFAULT_TIMEOUT,
     expected_sha256: str | None = None,
+    deadline: float = DEFAULT_DEADLINE,
 ) -> str:
     """Stream ``url`` to ``dest`` via ``dest.part`` and return the sha256 of the bytes.
 
     The ``.part`` file is removed on any failure (including Ctrl-C). If ``expected_sha256``
     is given and differs, the bytes are kept as ``dest.bad`` and ``ChecksumMismatchError``
-    is raised; ``dest`` itself is never replaced by bad data.
+    is raised; ``dest`` itself is never replaced by bad data. ``timeout`` bounds each socket
+    read; ``deadline`` bounds the whole transfer (seconds of wall-clock time).
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     digest = hashlib.sha256()
     received = 0
+    give_up_at = time.monotonic() + deadline
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response, open(part, "wb") as out:
             length_header = response.headers.get("Content-Length")
-            while chunk := response.read(CHUNK_SIZE):
+            # read1 returns after one socket read, so the deadline is checked even when a
+            # server trickles bytes (read(n) would block until n bytes arrived).
+            while chunk := response.read1(CHUNK_SIZE):
                 digest.update(chunk)
                 out.write(chunk)
                 received += len(chunk)
+                if time.monotonic() > give_up_at:
+                    raise FetchError(
+                        f"deadline of {deadline:g}s exceeded while fetching {url} "
+                        f"({received} bytes received)"
+                    )
             if length_header is not None and received != int(length_header):
                 raise FetchError(
                     f"incomplete download of {url}: got {received} of {length_header} bytes"
@@ -569,6 +583,7 @@ def fetch_source(
     dry_run: bool = False,
     timeout: float = DEFAULT_TIMEOUT,
     snapshot_download: SnapshotFn | None = None,
+    deadline: float = DEFAULT_DEADLINE,
 ) -> SourceResult:
     """Fetch (or check) one source into ``data_dir/<id>/``. Never raises for fetch errors.
 
@@ -584,7 +599,10 @@ def fetch_source(
                 source, src_dir, lock, record=record, dry_run=dry_run, timeout=timeout,
                 snapshot_download=snapshot_download,
             )
-        return _fetch_auto(source, src_dir, lock, record=record, dry_run=dry_run, timeout=timeout)
+        return _fetch_auto(
+            source, src_dir, lock, record=record, dry_run=dry_run, timeout=timeout,
+            deadline=deadline,
+        )
     except (FetchError, OSError) as exc:
         return SourceResult(
             source.id, source.access, source.licence_class, "failed", detail=str(exc),
@@ -593,7 +611,14 @@ def fetch_source(
 
 
 def _fetch_auto(
-    source: Source, src_dir: Path, lock: Lock, *, record: bool, dry_run: bool, timeout: float
+    source: Source,
+    src_dir: Path,
+    lock: Lock,
+    *,
+    record: bool,
+    dry_run: bool,
+    timeout: float,
+    deadline: float = DEFAULT_DEADLINE,
 ) -> SourceResult:
     pinned = lock.get(source.id, {})
     previous = _read_previous_shas(src_dir)
@@ -616,7 +641,9 @@ def _fetch_auto(
             assert known is not None
             digest = known
         else:
-            digest = download(spec.url, target, timeout=timeout, expected_sha256=expected)
+            digest = download(
+                spec.url, target, timeout=timeout, expected_sha256=expected, deadline=deadline
+            )
             changed = True
         if spec.extract:
             marker = target.with_name(target.name + ".extracted")
@@ -850,6 +877,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="add sha256s of files without a lock entry to the lock file",
     )
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="seconds per read")
+    parser.add_argument(
+        "--deadline", type=float, default=DEFAULT_DEADLINE, help="seconds per file, in total"
+    )
     return parser
 
 
@@ -902,6 +932,7 @@ def main(
                 dry_run=args.dry_run,
                 timeout=args.timeout,
                 snapshot_download=snapshot_download,
+                deadline=args.deadline,
             )
         )
     if args.record_checksums and not args.dry_run and json.dumps(lock, sort_keys=True) != before:

@@ -11,6 +11,7 @@ import io
 import json
 import tarfile
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -100,13 +101,39 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     routes: ClassVar[dict[str, bytes]] = {}
     truncated: ClassVar[dict[str, bytes]] = {}
     hits: ClassVar[dict[str, int]] = {}
+    redirects: ClassVar[dict[str, str]] = {}
+    trickle: ClassVar[dict[str, int]] = {}
+    raw: ClassVar[dict[str, bytes]] = {}
 
     def log_message(self, format: str, *args: object) -> None:
         pass
 
     def do_GET(self) -> None:
         self.hits[self.path] = self.hits.get(self.path, 0) + 1
-        if self.path in self.routes:
+        if self.path in self.raw:
+            self.wfile.write(self.raw[self.path])
+            self.wfile.flush()
+            self.close_connection = True
+        elif self.path in self.redirects:
+            self.send_response(302)
+            self.send_header("Location", self.redirects[self.path])
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        elif self.path in self.trickle:
+            # one byte every 50 ms: every read is fast, the whole transfer is slow
+            count = self.trickle[self.path]
+            self.send_response(200)
+            self.send_header("Content-Length", str(count))
+            self.end_headers()
+            try:
+                for _ in range(count):
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+            self.close_connection = True
+        elif self.path in self.routes:
             body = self.routes[self.path]
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
@@ -128,7 +155,11 @@ class _Handler(http.server.BaseHTTPRequestHandler):
 
 @pytest.fixture
 def server() -> Iterator[tuple[str, type[_Handler]]]:
-    handler = type("H", (_Handler,), {"routes": {}, "truncated": {}, "hits": {}})
+    handler = type(
+        "H",
+        (_Handler,),
+        {"routes": {}, "truncated": {}, "hits": {}, "redirects": {}, "trickle": {}, "raw": {}},
+    )
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, args=(0.05,), daemon=True)
     thread.start()
@@ -297,6 +328,8 @@ def test_download_removes_part_on_any_exception(tmp_path: Path, monkeypatch) -> 
 
         def read(self, n: int | None = -1) -> bytes:
             raise KeyboardInterrupt
+
+        read1 = read
 
     monkeypatch.setattr(fd.urllib.request, "urlopen", lambda *a, **k: Boom())
     dest = tmp_path / "x.bin"
@@ -695,6 +728,21 @@ def test_cli_bad_manifest_exits_two(tmp_path: Path, capsys) -> None:
     manifest = write_manifest(tmp_path, auto_source(licence_class="whatever"))
     assert run_cli(manifest, tmp_path / "raw") == 2
     assert "licence_class" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- review fixes
+
+
+def test_slow_trickle_download_hits_overall_deadline(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.trickle["/slow.bin"] = 60  # ~3 s in total, but each read returns within 50 ms
+    dest = tmp_path / "slow.bin"
+    started = time.monotonic()
+    with pytest.raises(fd.FetchError, match="deadline"):
+        fd.download(f"{base}/slow.bin", dest, timeout=2, deadline=0.5)
+    assert time.monotonic() - started < 2.0
+    assert not dest.exists()
+    assert not list(tmp_path.iterdir())
 
 
 # --------------------------------------------------------------------------- network
