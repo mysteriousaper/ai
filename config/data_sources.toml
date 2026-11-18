@@ -1,0 +1,371 @@
+# Dataset and lexicon manifest for scripts/fetch_data.py (brief §3).
+#
+# Seeded from docs/research/notes/R1-lexicons-datasets.md (final JSON block). Nothing here is
+# verified yet: every source has verified = false until a verifier confirms URL, licence and
+# class. Licence text is "as stated" by R1; licence_class is R1's (strictest) reading.
+#
+# Schema (unknown keys are errors):
+#   [[source]]
+#     id            [a-z0-9_]+ ; files land in data/raw/<id>/
+#     name, licence (as stated), homepage, instructions : strings
+#     licence_class commercial-OK | research-only | needs-licence | unclear | unverified
+#     access        auto | manual | hf_dataset
+#     verified      bool
+#     version, licence_url, notes : optional strings
+#   auto       -> one or more [[source.files]] with url, dest (relative), extract (bool;
+#                 .zip / .tar.gz / .tgz only)
+#   hf_dataset -> repo_id = "owner/name", revision (prefer a 40-char commit sha)
+#   manual     -> expected = [relative paths or glob patterns under data/raw/<id>/]
+#
+# Checksums live in config/data_sources.lock.json and are written only by --record-checksums.
+
+# ------------------------------------------------------------------------------- English VAD
+
+[[source]]
+id = "anew"
+name = "ANEW (Affective Norms for English Words)"
+version = "1999 (1,034 words)"
+licence = "signed user agreement from UF CSEA; terms not retrieved"
+licence_class = "needs-licence"
+licence_url = "https://csea.phhp.ufl.edu/media/anewmessage.html"
+access = "manual"
+homepage = "https://csea.phhp.ufl.edu/media/anewmessage.html"
+verified = false
+instructions = """Submit the ANEW Researcher Information Form on the CSEA page, sign the User \
+Agreement and ask in writing whether commercial use is allowed. Low priority: Warriner and NRC \
+VAD cover the same ground. Save the ratings file(s) as CSV into data/raw/anew/."""
+expected = ["*.csv"]
+notes = "single-source (search summary); host not reachable from the container."
+
+[[source]]
+id = "warriner2013"
+name = "Warriner, Kuperman & Brysbaert 2013 VAD norms"
+version = "2013 (13,915 lemmas)"
+licence = "CC BY-NC-ND 3.0 (reported by secondary source; original crr.ugent.be page is gone)"
+licence_class = "research-only"
+licence_url = "https://raw.githubusercontent.com/JULIELab/XANEW/master/README.md"
+access = "auto"
+homepage = "https://link.springer.com/article/10.3758/s13428-012-0314-x"
+verified = false
+instructions = "For commercial use contact Marc Brysbaert (Ghent). ND clause may bar derived lexicons."
+notes = "Mirror (JULIELab/XANEW); alternative mirror hwalicki/Twitter-Sentiment-Analysis."
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/JULIELab/XANEW/master/Ratings_Warriner_et_al.csv"
+dest = "Ratings_Warriner_et_al.csv"
+extract = false
+
+[[source]]
+id = "nrc_vad_v2"
+name = "NRC VAD Lexicon v2.1"
+version = "2.1 (March 2025)"
+licence = "NRC terms of use: free for non-commercial research/education; no redistribution; commercial licence by request"
+licence_class = "needs-licence"
+licence_url = "https://saifmohammad.com/WebPages/nrc-vad.html"
+access = "auto"
+homepage = "https://saifmohammad.com/WebPages/nrc-vad.html"
+verified = false
+instructions = "Commercial licence: email saif.mohammad@nrc-cnrc.gc.ca. Credit required in products."
+
+[[source.files]]
+url = "https://saifmohammad.com/WebDocs/Lexicons/NRC-VAD-Lexicon-v2.1.zip"
+dest = "NRC-VAD-Lexicon-v2.1.zip"
+extract = true
+
+[[source]]
+id = "nrc_vad_v1"
+name = "NRC VAD Lexicon v1"
+version = "1.0 (July 2018)"
+licence = "NRC terms of use (same as v2)"
+licence_class = "needs-licence"
+licence_url = "https://saifmohammad.com/WebPages/nrc-vad.html"
+access = "auto"
+homepage = "https://saifmohammad.com/WebPages/nrc-vad.html"
+verified = false
+instructions = "Commercial licence: email saif.mohammad@nrc-cnrc.gc.ca."
+notes = "44.5 MB; holds the only ready-made ru/hy VAD translations (machine translated)."
+
+[[source.files]]
+url = "https://saifmohammad.com/WebDocs/Lexicons/NRC-VAD-Lexicon.zip"
+dest = "NRC-VAD-Lexicon.zip"
+extract = true
+
+# --------------------------------------------------------------------------- English emotion
+
+[[source]]
+id = "nrc_emolex"
+name = "NRC Emotion Lexicon (EmoLex)"
+version = "0.92"
+licence = "NRC terms of use; commercial licence exists for a small fee"
+licence_class = "needs-licence"
+licence_url = "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"
+access = "auto"
+homepage = "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"
+verified = false
+instructions = "Commercial licence: email saif.mohammad@nrc-cnrc.gc.ca. No redistribution."
+
+[[source.files]]
+url = "https://saifmohammad.com/WebDocs/Lexicons/NRC-Emotion-Lexicon.zip"
+dest = "NRC-Emotion-Lexicon.zip"
+extract = true
+
+[[source]]
+id = "nrc_eil"
+name = "NRC Emotion Intensity Lexicon"
+version = "1 (March 2020)"
+licence = "NRC terms of use (non-commercial research)"
+licence_class = "needs-licence"
+licence_url = "https://saifmohammad.com/WebPages/AffectIntensity.htm"
+access = "auto"
+homepage = "https://saifmohammad.com/WebPages/AffectIntensity.htm"
+verified = false
+instructions = "Commercial licence: email saif.mohammad@nrc-cnrc.gc.ca."
+
+[[source.files]]
+url = "https://saifmohammad.com/WebDocs/Lexicons/NRC-Emotion-Intensity-Lexicon.zip"
+dest = "NRC-Emotion-Intensity-Lexicon.zip"
+extract = true
+
+# ----------------------------------------------------------------------------- Datasets (en)
+
+[[source]]
+id = "goemotions"
+name = "GoEmotions"
+version = "2020; HF revision add492243ff905527e67aeb8b80c082af02207c3"
+licence = "Apache-2.0 (repository); underlying text is Reddit comments"
+licence_class = "commercial-OK"
+licence_url = "https://huggingface.co/datasets/google-research-datasets/go_emotions"
+access = "hf_dataset"
+homepage = "https://github.com/google-research/google-research/tree/master/goemotions"
+verified = false
+instructions = ""
+repo_id = "google-research-datasets/go_emotions"
+revision = "add492243ff905527e67aeb8b80c082af02207c3"
+notes = "Reddit-provenance residual risk; raw config holds Reddit usernames (do not redistribute raw)."
+
+[[source]]
+id = "goemotions_meta"
+name = "GoEmotions label list and Ekman mapping"
+licence = "Apache-2.0 (repository)"
+licence_class = "commercial-OK"
+licence_url = "https://github.com/google-research/google-research/blob/master/LICENSE"
+access = "auto"
+homepage = "https://github.com/google-research/google-research/tree/master/goemotions"
+verified = false
+instructions = ""
+notes = "Small metadata files used by engine/mappings; unpinned (GitHub master)."
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/emotions.txt"
+dest = "emotions.txt"
+extract = false
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/google-research/google-research/master/goemotions/data/ekman_mapping.json"
+dest = "ekman_mapping.json"
+extract = false
+
+[[source]]
+id = "emobank"
+name = "EmoBank"
+version = "GitHub master (2017 + 2019 split + 2022 individual ratings)"
+licence = "CC BY-SA 4.0"
+licence_class = "unclear"
+licence_url = "https://github.com/JULIELab/EmoBank"
+access = "auto"
+homepage = "https://github.com/JULIELab/EmoBank"
+verified = false
+instructions = ""
+notes = "ShareAlike; source texts from MASC and SemEval-2007 headlines (rights unverified)."
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/JULIELab/EmoBank/master/corpus/emobank.csv"
+dest = "emobank.csv"
+extract = false
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/JULIELab/EmoBank/master/corpus/reader.csv"
+dest = "reader.csv"
+extract = false
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/JULIELab/EmoBank/master/corpus/writer.csv"
+dest = "writer.csv"
+extract = false
+
+[[source.files]]
+url = "https://raw.githubusercontent.com/JULIELab/EmoBank/master/corpus/meta.tsv"
+dest = "meta.tsv"
+extract = false
+
+[[source]]
+id = "empathetic_dialogues"
+name = "EmpatheticDialogues"
+version = "2019 (tarball dated 2019-12-19)"
+licence = "CC BY-NC 4.0"
+licence_class = "research-only"
+licence_url = "https://huggingface.co/datasets/facebook/empathetic_dialogues"
+access = "auto"
+homepage = "https://github.com/facebookresearch/EmpatheticDialogues"
+verified = false
+instructions = ""
+
+[[source.files]]
+url = "https://dl.fbaipublicfiles.com/parlai/empatheticdialogues/empatheticdialogues.tar.gz"
+dest = "empatheticdialogues.tar.gz"
+extract = true
+
+[[source]]
+id = "isear"
+name = "ISEAR"
+version = "unknown (Scherer & Wallbott)"
+licence = "not found"
+licence_class = "unclear"
+licence_url = "https://www.unige.ch/cisa/research/materials-and-online-research/research-material/"
+access = "manual"
+homepage = "https://www.unige.ch/cisa/research/materials-and-online-research/research-material/"
+verified = false
+instructions = """Open the unige.ch CISA research-material page in a browser (it blocks scripts), \
+download the ISEAR databank, put the files in data/raw/isear/ and copy the stated terms into \
+docs/DATA_SOURCES.md. Unofficial HF copies tagged apache-2.0 are not authoritative."""
+expected = ["*"]
+
+[[source]]
+id = "dailydialog"
+name = "DailyDialog"
+version = "2017 (IJCNLP); HF mirror roskoN/dailydialog"
+licence = "CC BY-NC-SA 4.0"
+licence_class = "research-only"
+licence_url = "https://huggingface.co/datasets/li2017dailydialog/daily_dialog"
+access = "hf_dataset"
+homepage = "http://yanran.li/dailydialog"
+verified = false
+instructions = ""
+repo_id = "roskoN/dailydialog"
+revision = "main"
+notes = "Original host yanran.li unreachable. Revision not pinned yet: replace 'main' with a commit sha."
+
+[[source]]
+id = "semeval2018_task1"
+name = "SemEval-2018 Task 1: Affect in Tweets"
+version = "2018 (zip last-modified 2019-06-19)"
+licence = "NRC terms: free for research, no redistribution, commercial by request"
+licence_class = "research-only"
+licence_url = "https://saifmohammad.com/WebPages/SentimentEmotionLabeledData.html"
+access = "auto"
+homepage = "https://competitions.codalab.org/competitions/17751"
+verified = false
+instructions = "Commercial: email saif.mohammad@nrc-cnrc.gc.ca. Tweets also subject to X terms."
+
+[[source.files]]
+url = "https://saifmohammad.com/WebDocs/AIT-2018/AIT2018-DATA/SemEval2018-Task1-all-data.zip"
+dest = "SemEval2018-Task1-all-data.zip"
+extract = true
+
+# --------------------------------------------------------------------------------- Keystroke
+
+[[source]]
+id = "emosurv"
+name = "EmoSurv (keystroke dynamics + emotion labels)"
+version = "IEEE DataPort DOI 10.21227/eae6-pk42"
+licence = "IEEE DataPort licence: non-commercial, educational, research only"
+licence_class = "research-only"
+licence_url = "https://ieee-dataport.org/open-access/emosurv-typing-biometric-keystroke-dynamics-dataset-emotion-labels-created-using"
+access = "manual"
+homepage = "https://ieee-dataport.org/open-access/emosurv-typing-biometric-keystroke-dynamics-dataset-emotion-labels-created-using"
+verified = false
+instructions = """Create or log in to a free IEEE account on ieee-dataport.org, open the EmoSurv \
+page, accept the licence, download the 4 CSV files and place them in data/raw/emosurv/."""
+expected = ["*.csv"]
+notes = "single-source licence (search summary); host not allowlisted."
+
+# ---------------------------------------------------------------------------------- Russian
+
+[[source]]
+id = "cedr"
+name = "CEDR (Corpus for Emotions Detecting in Russian)"
+version = "0.0.1"
+licence = "Apache-2.0 (repository)"
+licence_class = "unclear"
+licence_url = "https://huggingface.co/datasets/sagteam/cedr_v1"
+access = "hf_dataset"
+homepage = "https://github.com/sag111/CEDR"
+verified = false
+instructions = ""
+repo_id = "sagteam/cedr_v1"
+revision = "abafbe63cf92c33791b217e8f4f3460f816f1d96"
+notes = "Texts from LiveJournal, Lenta.ru and Twitter; rights of source texts unverified."
+
+[[source]]
+id = "ru_go_emotions"
+name = "ru_go_emotions (Russian machine translation of GoEmotions)"
+licence = "MIT (self-declared HF tag); derivative of GoEmotions via Google Translate"
+licence_class = "unclear"
+licence_url = "https://huggingface.co/datasets/seara/ru_go_emotions"
+access = "hf_dataset"
+homepage = "https://huggingface.co/datasets/seara/ru_go_emotions"
+verified = false
+instructions = ""
+repo_id = "seara/ru_go_emotions"
+revision = "0323e396b62e5e34812e70e1a82604d25b43f9a0"
+
+[[source]]
+id = "rusentilex"
+name = "RuSentiLex"
+version = "2016/2017 (unverified)"
+licence = "not found"
+licence_class = "unclear"
+licence_url = "https://www.labinform.ru/pub/rusentilex/index.htm"
+access = "manual"
+homepage = "https://www.labinform.ru/pub/rusentilex/index.htm"
+verified = false
+instructions = """Open the labinform.ru RuSentiLex page in a browser, download the lexicon into \
+data/raw/rusentilex/ and record the stated licence in docs/DATA_SOURCES.md."""
+expected = ["*"]
+
+# ------------------------------------------------------------------------- Armenian + Russian
+
+[[source]]
+id = "senti_lex_hy_ru"
+name = "Chen & Skiena multilingual sentiment lexicons (Armenian, Russian)"
+version = "HF senti-lex/senti_lex sha fef91cf506c726fd0fc4e45baa73b8b7bdbc985e"
+licence = "GPL-3.0"
+licence_class = "needs-licence"
+licence_url = "https://huggingface.co/datasets/senti-lex/senti_lex"
+access = "auto"
+homepage = "https://sites.google.com/site/datascienceslab/projects/multilingualsentiment"
+verified = false
+instructions = "For commercial use contact the dataset creators (GPL bars proprietary distribution)."
+notes = "Armenian list is noisy (propagated through a graph)."
+
+[[source.files]]
+url = "https://huggingface.co/datasets/senti-lex/senti_lex/resolve/main/data.zip"
+dest = "data.zip"
+extract = true
+
+[[source]]
+id = "armeniannlp"
+name = "ArmenianNLP (sentiment and emotion lexicons, ArmBERT)"
+licence = "CC BY-NC 4.0"
+licence_class = "research-only"
+licence_url = "https://raw.githubusercontent.com/nigkal/ArmenianNLP/main/README.md"
+access = "manual"
+homepage = "https://github.com/nigkal/ArmenianNLP"
+verified = false
+instructions = """No direct file URL is known yet (R1 only read the README). Clone \
+https://github.com/nigkal/ArmenianNLP and copy its lexicon files into data/raw/armeniannlp/."""
+expected = ["*"]
+
+[[source]]
+id = "armenian_news_sentiment"
+name = "Armenian news sentiment dataset (Elen22)"
+version = "HF sha eb847abefc0b40a62ac5cd0d7a1e52c57a261724"
+licence = "apache-2.0 (HF tag); train/dev machine-translated from SST, MELD, SLSD"
+licence_class = "unclear"
+licence_url = "https://huggingface.co/datasets/Elen22/Armenian-news-sentiment-dataset"
+access = "manual"
+homepage = "https://huggingface.co/datasets/Elen22/Armenian-news-sentiment-dataset"
+verified = false
+instructions = """Gated dataset: log in to Hugging Face, accept the share-contact-information \
+condition, then download the files into data/raw/armenian_news_sentiment/."""
+expected = ["*"]

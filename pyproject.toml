@@ -56,6 +56,7 @@ en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/dow
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "network: needs internet (model downloads); deselect with -m 'not network'",
     "slow: takes more than a few seconds",
