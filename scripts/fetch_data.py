@@ -162,7 +162,7 @@ def fetch_sources() -> list[dict]:
                 print(f"  fetch  {rel}")
                 try:
                     download(url, dest)
-                except Exception as e:  # report and continue; never loop
+                except OSError as e:  # URLError is an OSError; report and continue, never loop
                     print(f"  FAILED {rel}: {e}")
                     continue
                 if src.extract:

@@ -36,7 +36,7 @@ Note: GoEmotions is notoriously hard. The original paper reports macro-F1 ≈ 0.
 - **Scherer's Component Process Model:** emotions come from a sequence of appraisal checks: *relevance* (novelty, intrinsic pleasantness, goal relevance), *implications* (who caused it, outcome probability, goal conduciveness, urgency), *coping potential* (control, power, adjustment), *normative significance* (fits my values / social norms?).
 - **OCC model (Ortony, Clore & Collins):** three branches: consequences of **events** (joy/distress, hope/fear, relief/disappointment), actions of **agents** (pride/shame for self, admiration/reproach for others), aspects of **objects** (love/hate).
 - **Our schema** takes the useful, measurable subset: `event_type` (taxonomy below), `agent` ∈ {self, other, circumstance}, `goal_congruence` [-1, 1], `certainty` [0, 1] (≈ outcome probability), `controllability` [-1, 1] (≈ coping potential), `norm_violation` bool, and `need`.
-- **Event taxonomy v0** (collapses EmpatheticDialogues' 32 situations + OCC branches into ~12 groups): loss_or_failure, achievement_or_success, conflict_or_mistreatment, threat_or_danger, uncertainty_about_future, social_connection, rejection_or_loneliness, unfairness, surprise_event, routine_or_boredom, health_or_body, other. The mapping from ED labels → taxonomy is written and tested in Phase 2.
+- **Event taxonomy v0.1** (16 types, OCC branches + EmpatheticDialogues situations): see `engine/mappings/labels.py::EventType` and ADR-008. The ED → taxonomy mapping is tested.
 
 ### Psycholinguistics (engine C)
 - **First-person singular pronouns** ("I, me, my") are reliably elevated in depression/distress (Rude et al. 2004; Tackman et al. 2019 meta-analysis: small but robust effect).

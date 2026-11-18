@@ -11,4 +11,4 @@ make env       # print compute environment
 
 Docs: [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Data sources](docs/DATA_SOURCES.md) · [Research](docs/RESEARCH.md) · [Tools](docs/TOOLS.md)
 
-**Status:** Phase 1 complete — data fetched (`uv run python scripts/fetch_data.py`), research + licences documented.
+**Status:** Phase 2 complete. Architecture, schemas (`docs/schema/`), engine interfaces, mappings, safety rule, travel_v0 adapter; 75 tests green.

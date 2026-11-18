@@ -1,1 +1,4 @@
-"""Stub — implemented in a later phase. See PROJECT_BRIEF.md."""
+"""Hidden Markov Model over discrete mood states (evaluated, used only if it wins on metrics).
+
+Implemented in Phase 4.
+"""

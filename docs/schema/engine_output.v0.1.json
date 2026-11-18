@@ -1,0 +1,296 @@
+{
+  "$defs": {
+    "Agent": {
+      "enum": [
+        "self",
+        "other",
+        "circumstance",
+        "unknown"
+      ],
+      "title": "Agent",
+      "type": "string"
+    },
+    "EventType": {
+      "description": "Event taxonomy v0.1. Built from OCC branches + EmpatheticDialogues situations.",
+      "enum": [
+        "loss_or_failure",
+        "own_mistake_or_wrongdoing",
+        "conflict_or_mistreatment",
+        "unfairness",
+        "threat_or_danger",
+        "uncertainty_about_future",
+        "achievement_or_success",
+        "positive_anticipation",
+        "pleasant_event",
+        "social_connection",
+        "rejection_or_loneliness",
+        "reminiscence",
+        "surprise_event",
+        "routine_or_boredom",
+        "health_or_body",
+        "other"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "NeedScore": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/NeedType"
+        },
+        "p": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "p"
+      ],
+      "title": "NeedScore",
+      "type": "object"
+    },
+    "NeedType": {
+      "enum": [
+        "emotional_support",
+        "practical_solution",
+        "information",
+        "change_of_scene",
+        "rest",
+        "celebration",
+        "connection"
+      ],
+      "title": "NeedType",
+      "type": "string"
+    },
+    "SafetyFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/SafetyLevel",
+          "default": "none"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "title": "SafetyFlag",
+      "type": "object"
+    },
+    "SafetyLevel": {
+      "enum": [
+        "none",
+        "concern",
+        "urgent"
+      ],
+      "title": "SafetyLevel",
+      "type": "string"
+    },
+    "Situation": {
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "event_type_p": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Event Type P",
+          "type": "number"
+        },
+        "agent": {
+          "$ref": "#/$defs/Agent",
+          "default": "unknown"
+        },
+        "goal_congruence": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Goal Congruence",
+          "type": "number"
+        },
+        "certainty": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Certainty",
+          "type": "number"
+        },
+        "controllability": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Controllability",
+          "type": "number"
+        },
+        "norm_violation": {
+          "default": false,
+          "title": "Norm Violation",
+          "type": "boolean"
+        },
+        "evidence_spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_type"
+      ],
+      "title": "Situation",
+      "type": "object"
+    },
+    "VAD": {
+      "additionalProperties": false,
+      "properties": {
+        "valence": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Valence",
+          "type": "number"
+        },
+        "arousal": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "dominance": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Dominance",
+          "type": "number"
+        },
+        "std": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "description": "per-dimension uncertainty, >= 0",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Std",
+          "type": "array"
+        }
+      },
+      "required": [
+        "valence",
+        "arousal",
+        "dominance"
+      ],
+      "title": "VAD",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What every signal engine (A\u2013F) returns. Same shape for all engines.",
+  "properties": {
+    "engine": {
+      "title": "Engine",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "vad": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VAD"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "emotions": {
+      "additionalProperties": {
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "type": "number"
+      },
+      "description": "canonical label -> probability",
+      "title": "Emotions",
+      "type": "object"
+    },
+    "features": {
+      "additionalProperties": true,
+      "description": "raw values for explainability",
+      "title": "Features",
+      "type": "object"
+    },
+    "confidence": {
+      "default": 0.0,
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "coverage": {
+      "default": 0.0,
+      "description": "share of the input the engine could actually read",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Coverage",
+      "type": "number"
+    },
+    "situation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Situation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "needs": {
+      "items": {
+        "$ref": "#/$defs/NeedScore"
+      },
+      "title": "Needs",
+      "type": "array"
+    },
+    "safety": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SafetyFlag"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "engine",
+    "version"
+  ],
+  "title": "EngineOutput",
+  "type": "object"
+}

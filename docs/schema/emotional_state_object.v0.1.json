@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "Agent": {
+      "enum": [
+        "self",
+        "other",
+        "circumstance",
+        "unknown"
+      ],
+      "title": "Agent",
+      "type": "string"
+    },
+    "Coarse": {
+      "additionalProperties": false,
+      "properties": {
+        "plutchik": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "title": "Plutchik",
+          "type": "object"
+        },
+        "ekman": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "title": "Ekman",
+          "type": "object"
+        }
+      },
+      "required": [
+        "plutchik",
+        "ekman"
+      ],
+      "title": "Coarse",
+      "type": "object"
+    },
+    "EmotionScore": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "p": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "p"
+      ],
+      "title": "EmotionScore",
+      "type": "object"
+    },
+    "EventType": {
+      "description": "Event taxonomy v0.1. Built from OCC branches + EmpatheticDialogues situations.",
+      "enum": [
+        "loss_or_failure",
+        "own_mistake_or_wrongdoing",
+        "conflict_or_mistreatment",
+        "unfairness",
+        "threat_or_danger",
+        "uncertainty_about_future",
+        "achievement_or_success",
+        "positive_anticipation",
+        "pleasant_event",
+        "social_connection",
+        "rejection_or_loneliness",
+        "reminiscence",
+        "surprise_event",
+        "routine_or_boredom",
+        "health_or_body",
+        "other"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "Explanation": {
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "title": "Engine",
+          "type": "string"
+        },
+        "top_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Top Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "engine"
+      ],
+      "title": "Explanation",
+      "type": "object"
+    },
+    "NeedScore": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/NeedType"
+        },
+        "p": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "p"
+      ],
+      "title": "NeedScore",
+      "type": "object"
+    },
+    "NeedType": {
+      "enum": [
+        "emotional_support",
+        "practical_solution",
+        "information",
+        "change_of_scene",
+        "rest",
+        "celebration",
+        "connection"
+      ],
+      "title": "NeedType",
+      "type": "string"
+    },
+    "Pattern": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_deviation": {
+          "default": 0.0,
+          "description": "valence z-score vs personal baseline",
+          "title": "Baseline Deviation",
+          "type": "number"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend",
+          "default": "unknown"
+        },
+        "volatility": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Volatility",
+          "type": "number"
+        },
+        "n_messages": {
+          "default": 0,
+          "minimum": 0,
+          "title": "N Messages",
+          "type": "integer"
+        },
+        "recurring_triggers": {
+          "items": {
+            "$ref": "#/$defs/EventType"
+          },
+          "title": "Recurring Triggers",
+          "type": "array"
+        }
+      },
+      "title": "Pattern",
+      "type": "object"
+    },
+    "SafetyFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/SafetyLevel",
+          "default": "none"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reasons",
+          "type": "array"
+        }
+      },
+      "title": "SafetyFlag",
+      "type": "object"
+    },
+    "SafetyLevel": {
+      "enum": [
+        "none",
+        "concern",
+        "urgent"
+      ],
+      "title": "SafetyLevel",
+      "type": "string"
+    },
+    "Situation": {
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "event_type_p": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Event Type P",
+          "type": "number"
+        },
+        "agent": {
+          "$ref": "#/$defs/Agent",
+          "default": "unknown"
+        },
+        "goal_congruence": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Goal Congruence",
+          "type": "number"
+        },
+        "certainty": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Certainty",
+          "type": "number"
+        },
+        "controllability": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Controllability",
+          "type": "number"
+        },
+        "norm_violation": {
+          "default": false,
+          "title": "Norm Violation",
+          "type": "boolean"
+        },
+        "evidence_spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_type"
+      ],
+      "title": "Situation",
+      "type": "object"
+    },
+    "Trend": {
+      "enum": [
+        "improving",
+        "stable",
+        "worsening",
+        "unknown"
+      ],
+      "title": "Trend",
+      "type": "string"
+    },
+    "VAD": {
+      "additionalProperties": false,
+      "properties": {
+        "valence": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Valence",
+          "type": "number"
+        },
+        "arousal": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "dominance": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Dominance",
+          "type": "number"
+        },
+        "std": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "description": "per-dimension uncertainty, >= 0",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Std",
+          "type": "array"
+        }
+      },
+      "required": [
+        "valence",
+        "arousal",
+        "dominance"
+      ],
+      "title": "VAD",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Universal, domain-neutral output of the Engine (brief \u00a74.8).",
+  "properties": {
+    "schema_version": {
+      "default": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "language": {
+      "default": "en",
+      "title": "Language",
+      "type": "string"
+    },
+    "vad": {
+      "$ref": "#/$defs/VAD"
+    },
+    "emotions": {
+      "description": "sorted by p, descending",
+      "items": {
+        "$ref": "#/$defs/EmotionScore"
+      },
+      "title": "Emotions",
+      "type": "array"
+    },
+    "coarse": {
+      "$ref": "#/$defs/Coarse"
+    },
+    "intensity": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Intensity",
+      "type": "number"
+    },
+    "situation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Situation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "need": {
+      "items": {
+        "$ref": "#/$defs/NeedScore"
+      },
+      "title": "Need",
+      "type": "array"
+    },
+    "pattern": {
+      "$ref": "#/$defs/Pattern"
+    },
+    "overall_confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Overall Confidence",
+      "type": "number"
+    },
+    "mixed_or_ambiguous": {
+      "default": false,
+      "title": "Mixed Or Ambiguous",
+      "type": "boolean"
+    },
+    "uncertain": {
+      "default": false,
+      "description": "true when evidence is too weak to name an emotion",
+      "title": "Uncertain",
+      "type": "boolean"
+    },
+    "safety_flag": {
+      "$ref": "#/$defs/SafetyFlag"
+    },
+    "explanations": {
+      "items": {
+        "$ref": "#/$defs/Explanation"
+      },
+      "title": "Explanations",
+      "type": "array"
+    },
+    "engine_versions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Engine Versions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "vad",
+    "emotions",
+    "coarse",
+    "intensity",
+    "overall_confidence"
+  ],
+  "title": "EmotionalStateObject",
+  "type": "object"
+}

@@ -1,0 +1,132 @@
+{
+  "$defs": {
+    "KeyCategory": {
+      "description": "Keystroke stream stores categories only \u2014 never the actual character (privacy, \u00a74.2).",
+      "enum": [
+        "letter",
+        "digit",
+        "space",
+        "backspace",
+        "delete",
+        "punctuation",
+        "enter",
+        "modifier",
+        "navigation",
+        "other"
+      ],
+      "title": "KeyCategory",
+      "type": "string"
+    },
+    "KeystrokeEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "key_category": {
+          "$ref": "#/$defs/KeyCategory"
+        },
+        "down_ts": {
+          "description": "ms since message composition started",
+          "minimum": 0,
+          "title": "Down Ts",
+          "type": "number"
+        },
+        "up_ts": {
+          "minimum": 0,
+          "title": "Up Ts",
+          "type": "number"
+        }
+      },
+      "required": [
+        "key_category",
+        "down_ts",
+        "up_ts"
+      ],
+      "title": "KeystrokeEvent",
+      "type": "object"
+    },
+    "MessageContext": {
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Id"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "message_index": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Message Index",
+          "type": "integer"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO 639-1; detected if None",
+          "title": "Language"
+        }
+      },
+      "title": "MessageContext",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "keystroke_events": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/KeystrokeEvent"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Keystroke Events"
+    },
+    "context": {
+      "$ref": "#/$defs/MessageContext"
+    }
+  },
+  "required": [
+    "text"
+  ],
+  "title": "EngineInput",
+  "type": "object"
+}

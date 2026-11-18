@@ -1,1 +1,4 @@
-"""Stub — implemented in a later phase. See PROJECT_BRIEF.md."""
+"""1-D/3-D Kalman filter on VAD with engine std as measurement noise.
+
+Implemented in Phase 4.
+"""
