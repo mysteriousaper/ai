@@ -72,16 +72,12 @@ def test_vader_baseline_polarity_sign():
 
 @pytest.mark.parametrize(
     "path",
-    [
-        "data/raw/goemotions.csv",
-        "data/processed/x.parquet",
-        "mlruns/0/meta.yaml",
-        "mlflow.db",
-        ".env",
-    ],
+    ["data/raw/goemotions.csv", "data/processed/x.parquet", "mlruns/0/meta.yaml", "mlflow.db", ".env"],
 )
 def test_sensitive_paths_are_gitignored(path):
-    result = subprocess.run(["git", "check-ignore", "-q", path], cwd=REPO_ROOT, check=False)
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", path], cwd=REPO_ROOT, check=False
+    )
     assert result.returncode == 0, f"{path} must be git-ignored"
 
 

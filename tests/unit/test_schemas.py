@@ -67,15 +67,8 @@ def eso_dict(**kw: Any) -> dict[str, Any]:
 
 def test_key_category_members() -> None:
     assert [k.value for k in S.KeyCategory] == [
-        "letter",
-        "digit",
-        "space",
-        "backspace",
-        "delete",
-        "punctuation",
-        "enter",
-        "modifier",
-        "other",
+        "letter", "digit", "space", "backspace", "delete", "punctuation", "enter",
+        "modifier", "other",
     ]
 
 
@@ -89,12 +82,7 @@ def test_event_and_need_taxonomies() -> None:
     assert len(S.EventType) == 16
     assert "other_or_unclear" in {e.value for e in S.EventType}
     assert [n.value for n in S.NeedType] == [
-        "emotional_support",
-        "solution",
-        "information",
-        "distraction",
-        "rest",
-        "celebration",
+        "emotional_support", "solution", "information", "distraction", "rest", "celebration",
     ]
     assert [a.value for a in S.Agent] == ["self", "other", "circumstance", "unknown"]
     assert [t.value for t in S.Trend] == ["improving", "worsening", "stable", "unknown"]

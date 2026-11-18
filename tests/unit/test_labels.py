@@ -53,18 +53,8 @@ def test_ekman_map_matches_official_file() -> None:
         "disgust": ("disgust",),
         "fear": ("fear", "nervousness"),
         "joy": (
-            "joy",
-            "amusement",
-            "approval",
-            "excitement",
-            "gratitude",
-            "love",
-            "optimism",
-            "relief",
-            "pride",
-            "admiration",
-            "desire",
-            "caring",
+            "joy", "amusement", "approval", "excitement", "gratitude", "love", "optimism",
+            "relief", "pride", "admiration", "desire", "caring",
         ),
         "sadness": ("sadness", "disappointment", "embarrassment", "grief", "remorse"),
         "surprise": ("surprise", "realization", "confusion", "curiosity"),
@@ -79,14 +69,7 @@ def test_ekman_covers_every_non_neutral_label_exactly_once() -> None:
 
 def test_plutchik_has_eight_primaries_and_covers_every_non_neutral_label() -> None:
     assert L.PLUTCHIK_LABELS == (
-        "joy",
-        "trust",
-        "fear",
-        "surprise",
-        "sadness",
-        "disgust",
-        "anger",
-        "anticipation",
+        "joy", "trust", "fear", "surprise", "sadness", "disgust", "anger", "anticipation",
     )
     assert tuple(L.PLUTCHIK_MAP) == L.PLUTCHIK_LABELS
     mapped = {g for fine in L.PLUTCHIK_MAP.values() for g in fine}
