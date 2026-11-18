@@ -44,7 +44,7 @@ LanguageTag = Annotated[str, Field(pattern=r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")]
 FeatureName = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.:\-]{1,64}$")]
 
 
-class _Model(BaseModel):
+class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False, validate_assignment=True)
 
 
@@ -197,7 +197,7 @@ class Trend(StrEnum):
 # --- input capture (§4.2) ---------------------------------------------------------------------
 
 
-class KeystrokeEvent(_Model):
+class KeystrokeEvent(StrictModel):
     """One key press. Timestamps are milliseconds on a monotonic clock (e.g. ``performance.now()``)."""
 
     key_category: KeyCategory
@@ -211,7 +211,7 @@ class KeystrokeEvent(_Model):
         return self
 
 
-class MessageContext(_Model):
+class MessageContext(StrictModel):
     session_id: NonEmptyStr
     user_id: NonEmptyStr | None = None
     message_index: Annotated[StrictInt, Field(ge=0)]
@@ -219,7 +219,7 @@ class MessageContext(_Model):
     language: LanguageTag | None = None
 
 
-class EngineInput(_Model):
+class EngineInput(StrictModel):
     # repr=False: raw user text never shows up in repr(), logs or tracebacks (brief §1.8).
     text: str = Field(repr=False)
     keystroke_events: list[KeystrokeEvent] | None = None
@@ -229,7 +229,7 @@ class EngineInput(_Model):
 # --- engine output (§4.4) ---------------------------------------------------------------------
 
 
-class VAD(_Model):
+class VAD(StrictModel):
     """Valence, arousal, dominance on the common [-1, 1] scale, with one std per dimension."""
 
     valence: Signed
@@ -238,7 +238,7 @@ class VAD(_Model):
     std: tuple[NonNegative, NonNegative, NonNegative]
 
 
-class EngineOutput(_Model):
+class EngineOutput(StrictModel):
     engine: NonEmptyStr
     engine_version: NonEmptyStr
     vad: VAD | None = None
@@ -252,22 +252,22 @@ class EngineOutput(_Model):
 # --- Emotional State Object (§4.8) ------------------------------------------------------------
 
 
-class EmotionScore(_Model):
+class EmotionScore(StrictModel):
     label: EmotionLabel
     p: Probability
 
 
-class NeedScore(_Model):
+class NeedScore(StrictModel):
     type: NeedType
     p: Probability
 
 
-class Coarse(_Model):
+class Coarse(StrictModel):
     plutchik: dict[PlutchikLabel, Probability]
     ekman: dict[EkmanLabel, Probability]
 
 
-class Situation(_Model):
+class Situation(StrictModel):
     """Appraisal of the event behind the feeling. ``None`` means "not estimated"."""
 
     event_type: EventType
@@ -278,7 +278,7 @@ class Situation(_Model):
     evidence_spans: list[NonEmptyStr]
 
 
-class Pattern(_Model):
+class Pattern(StrictModel):
     """State over time. ``baseline_deviation`` is a z-score; ``None`` until a baseline exists."""
 
     baseline_deviation: FiniteFloat | None
@@ -286,7 +286,7 @@ class Pattern(_Model):
     volatility: NonNegative
 
 
-class Explanation(_Model):
+class Explanation(StrictModel):
     engine: NonEmptyStr
     top_features: list[NonEmptyStr]
 
@@ -304,7 +304,7 @@ def _sorted_unique(items: list[Any], key: str, order: dict[str, int]) -> list[An
 _NEED_ORDER: dict[str, int] = {n.value: i for i, n in enumerate(NeedType)}
 
 
-class EmotionalStateObject(_Model):
+class EmotionalStateObject(StrictModel):
     """The universal, domain-neutral output (brief §4.8), versioned by ``schema_version``.
 
     ``emotions`` and ``need`` are always stored sorted by ``p``, descending (ties by canonical
