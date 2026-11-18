@@ -865,6 +865,68 @@ def test_tar_hardlink_to_earlier_member_is_allowed(tmp_path: Path) -> None:
     assert (tmp_path / "out" / "a" / "y.txt").read_bytes() == b"x"
 
 
+def _ab_source(base: str) -> str:
+    return auto_source(url=f"{base}/a.txt") + f"""
+[[source.files]]
+url = "{base}/b.txt"
+dest = "b.txt"
+extract = false
+"""
+
+
+def test_partial_failure_is_recorded_in_source_json(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/b.txt"] = b"bee"  # /a.txt is missing -> 404
+    (source,) = load(tmp_path, _ab_source(base))
+    src = tmp_path / "raw" / "demo"
+
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.failed
+    assert "1 of 2" in result.detail and "a.txt" in result.detail and "404" in result.detail
+    assert (src / "b.txt").read_bytes() == b"bee", "a failure does not stop the other files"
+    meta = json.loads((src / "SOURCE.json").read_text())
+    assert meta["complete"] is False
+    assert meta["sha256s"] == {"b.txt": sha(b"bee")}
+    assert set(meta["failed"]) == {"a.txt"}
+
+
+def test_partial_failure_replaces_stale_complete_source_json(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/a.txt"] = b"ay"
+    handler.routes["/b.txt"] = b"bee"
+    (source,) = load(tmp_path, _ab_source(base))
+    src = tmp_path / "raw" / "demo"
+    assert fd.fetch_source(source, tmp_path / "raw", {}).status == "ok"
+    assert json.loads((src / "SOURCE.json").read_text())["complete"] is True
+
+    (src / "a.txt").write_bytes(b"corrupt")
+    del handler.routes["/a.txt"]
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.failed
+    meta = json.loads((src / "SOURCE.json").read_text())
+    assert meta["complete"] is False
+    assert "a.txt" not in meta["sha256s"]
+
+
+def test_rerun_after_partial_failure_completes_source_json(tmp_path: Path, server) -> None:
+    base, handler = server
+    handler.routes["/b.txt"] = b"bee"
+    (source,) = load(tmp_path, _ab_source(base))
+    src = tmp_path / "raw" / "demo"
+    fd.fetch_source(source, tmp_path / "raw", {})
+    handler.routes["/a.txt"] = b"ay"
+
+    result = fd.fetch_source(source, tmp_path / "raw", {})
+
+    assert result.status == "ok", result.detail
+    meta = json.loads((src / "SOURCE.json").read_text())
+    assert meta["complete"] is True
+    assert "failed" not in meta
+    assert set(meta["sha256s"]) == {"a.txt", "b.txt"}
+
+
 # --------------------------------------------------------------------------- network
 
 

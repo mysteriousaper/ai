@@ -632,6 +632,15 @@ def _read_previous_shas(src_dir: Path) -> dict[str, str]:
         return {}
 
 
+def _previous_complete(src_dir: Path) -> bool:
+    """True when ``SOURCE.json`` exists and says the last run fetched every file."""
+    try:
+        meta = json.loads((src_dir / SOURCE_META).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(meta, dict) and meta.get("complete") is True
+
+
 def write_source_meta(
     source: Source, src_dir: Path, urls: Sequence[str], sha256s: dict[str, str], **extra: Any
 ) -> Path:
@@ -711,35 +720,44 @@ def _fetch_auto(
 ) -> SourceResult:
     pinned = lock.get(source.id, {})
     previous = _read_previous_shas(src_dir)
+    meta_path = src_dir / SOURCE_META
     shas: dict[str, str] = {}
     unpinned: list[str] = []
     notes: list[str] = []
+    failures: dict[str, str] = {}
     changed = False
     for spec in source.files:
-        target = resolve_inside(src_dir, spec.dest)
         expected = pinned.get(spec.dest)
-        known = expected or previous.get(spec.dest)
-        up_to_date = target.is_file() and known is not None and sha256_file(target) == known
-        if dry_run:
-            notes.append(f"{spec.dest}: {'up to date' if up_to_date else 'would download'}")
-            if expected is None:
-                unpinned.append(spec.dest)
-            continue
-        fetched = not up_to_date
-        if up_to_date:
-            assert known is not None
-            digest = known
-        else:
-            digest = download(
-                spec.url, target, timeout=timeout, expected_sha256=expected, deadline=deadline
-            )
-            changed = True
-        if spec.extract:
-            marker = target.with_name(target.name + ".extracted")
-            if fetched or not marker.is_file() or marker.read_text().strip() != digest:
-                safe_extract(target, target.parent, protected=_bookkeeping_paths(source, src_dir))
-                marker.write_text(digest + "\n", encoding="utf-8")
+        try:
+            target = resolve_inside(src_dir, spec.dest)
+            known = expected or previous.get(spec.dest)
+            up_to_date = target.is_file() and known is not None and sha256_file(target) == known
+            if dry_run:
+                notes.append(f"{spec.dest}: {'up to date' if up_to_date else 'would download'}")
+                if expected is None:
+                    unpinned.append(spec.dest)
+                continue
+            if up_to_date:
+                assert known is not None
+                digest = known
+            else:
+                digest = download(
+                    spec.url, target, timeout=timeout, expected_sha256=expected, deadline=deadline
+                )
                 changed = True
+            if spec.extract:
+                marker = target.with_name(target.name + ".extracted")
+                if not up_to_date or not marker.is_file() or marker.read_text().strip() != digest:
+                    marker.unlink(missing_ok=True)
+                    safe_extract(
+                        target, target.parent, protected=_bookkeeping_paths(source, src_dir)
+                    )
+                    marker.write_text(digest + "\n", encoding="utf-8")
+                    changed = True
+        except (FetchError, OSError) as exc:
+            # Keep going: one bad file must not hide the state of the others.
+            failures[spec.dest] = str(exc)
+            continue
         shas[spec.dest] = digest
         if expected is None:
             if record:
@@ -751,11 +769,23 @@ def _fetch_auto(
         source.id, source.access, source.licence_class, "planned", unpinned=unpinned,
         instructions=source.instructions,
     )
+    urls = [f.url for f in source.files]
+    if failures:
+        # Record exactly which files are good, so a stale "complete" SOURCE.json never
+        # vouches for files that this run could not fetch or verify.
+        if shas or meta_path.is_file():
+            write_source_meta(source, src_dir, urls, shas, complete=False, failed=failures)
+        base.status = "failed"
+        base.sha256s = shas
+        base.detail = f"{len(shas)} of {len(source.files)} file(s) ok; failed: " + "; ".join(
+            f"{dest}: {msg}" for dest, msg in failures.items()
+        )
+        return base
     if dry_run:
         base.detail = "; ".join(notes)
         return base
-    if changed or not (src_dir / SOURCE_META).is_file():
-        write_source_meta(source, src_dir, [f.url for f in source.files], shas)
+    if changed or not _previous_complete(src_dir):
+        write_source_meta(source, src_dir, urls, shas, complete=True)
     base.status = "ok" if changed else "skipped"
     base.sha256s = shas
     base.detail = f"{len(shas)} file(s)" + ("" if changed else ", hashes match")
