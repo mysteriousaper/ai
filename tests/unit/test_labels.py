@@ -135,3 +135,8 @@ def test_noisy_or_is_exact_for_a_single_member_and_tiny_probabilities() -> None:
         out = L.to_plutchik({"joy": p, "amusement": p})
         assert out["joy"] >= p
     assert L.to_ekman({"joy": 1.0, "love": 1.0})["joy"] == 1.0
+
+
+def test_huge_int_probability_raises_value_error_not_overflow() -> None:
+    with pytest.raises(ValueError):
+        L.to_ekman({"joy": 10**400})

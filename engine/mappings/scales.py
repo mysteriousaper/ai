@@ -66,7 +66,10 @@ def _scale(name: str) -> Scale:
 def _real(value: float) -> float:
     if isinstance(value, bool) or not isinstance(value, Real):
         raise TypeError(f"expected a real number, got {type(value).__name__}")
-    v = float(value)
+    try:
+        v = float(value)
+    except OverflowError:  # e.g. a huge int: out of any range, so the documented ValueError
+        raise ValueError(f"value is too large: {value!r:.40}") from None
     if not isfinite(v):
         raise ValueError(f"value must be finite, got {v!r}")
     return v

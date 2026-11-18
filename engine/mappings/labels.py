@@ -200,7 +200,7 @@ def _check(probs: Mapping[str, float]) -> None:
             raise UnknownLabelError(f"unknown emotion label {label!r}")
         if isinstance(p, bool) or not isinstance(p, Real):
             raise TypeError(f"probability for {label!r} must be a real number")
-        if not (isfinite(p) and 0.0 <= p <= 1.0):
+        if not (0.0 <= p <= 1.0 and isfinite(p)):  # range first: isfinite(10**400) overflows
             raise ValueError(f"probability for {label!r} must be in [0, 1], got {p!r}")
 
 

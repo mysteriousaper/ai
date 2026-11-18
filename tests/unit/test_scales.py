@@ -70,3 +70,10 @@ def test_non_numbers_rejected() -> None:
         S.to_unit(True, "nrc_vad_v1")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         S.to_unit("5", "warriner")  # type: ignore[arg-type]
+
+
+def test_huge_int_raises_value_error_not_overflow() -> None:
+    with pytest.raises(ValueError):
+        S.to_unit(10**400, "warriner")
+    with pytest.raises(ValueError):
+        S.from_unit(10**400, "warriner")
