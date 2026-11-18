@@ -1,0 +1,35 @@
+[project]
+name = "emotion-engine"
+version = "0.0.1"
+description = "Text-first Emotion Inference Engine (MVP)"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.44",
+    "datasets>=2.20",
+    "accelerate>=0.33",
+    "sentence-transformers>=3.0",
+    "scikit-learn>=1.5",
+    "scipy>=1.13",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "spacy>=3.7",
+    "hdbscan>=0.8.38",
+    "umap-learn>=0.5.6",
+    "pydantic>=2.8",
+    "fastapi>=0.112",
+    "uvicorn>=0.30",
+    "vaderSentiment>=3.3.2",
+    "emoji>=2.12",
+    "langdetect>=1.0.9",
+    "trackio>=0.1",
+    "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "hypothesis>=6.108", "ruff>=0.6"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
