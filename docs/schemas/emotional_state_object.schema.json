@@ -1,0 +1,501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Agent": {
+      "description": "Who or what the person holds responsible (appraisal \"responsibility\"; Smith & Ellsworth\n1985; \"circumstances\" as in Hofmann et al. 2020).",
+      "enum": [
+        "self",
+        "other",
+        "circumstance",
+        "unknown"
+      ],
+      "title": "Agent",
+      "type": "string"
+    },
+    "Coarse": {
+      "additionalProperties": false,
+      "properties": {
+        "plutchik": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/PlutchikLabel"
+          },
+          "title": "Plutchik",
+          "type": "object"
+        },
+        "ekman": {
+          "additionalProperties": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/EkmanLabel"
+          },
+          "title": "Ekman",
+          "type": "object"
+        }
+      },
+      "required": [
+        "plutchik",
+        "ekman"
+      ],
+      "title": "Coarse",
+      "type": "object"
+    },
+    "EkmanLabel": {
+      "description": "Ekman's six, in the order of GoEmotions' ekman_mapping.json.",
+      "enum": [
+        "anger",
+        "disgust",
+        "fear",
+        "joy",
+        "sadness",
+        "surprise"
+      ],
+      "title": "EkmanLabel",
+      "type": "string"
+    },
+    "EmotionLabel": {
+      "description": "Canonical discrete labels: GoEmotions 27 + neutral, in the official emotions.txt order.\n\nMust equal :data:`engine.mappings.labels.GOEMOTIONS_LABELS` (checked at import and by tests).",
+      "enum": [
+        "admiration",
+        "amusement",
+        "anger",
+        "annoyance",
+        "approval",
+        "caring",
+        "confusion",
+        "curiosity",
+        "desire",
+        "disappointment",
+        "disapproval",
+        "disgust",
+        "embarrassment",
+        "excitement",
+        "fear",
+        "gratitude",
+        "grief",
+        "joy",
+        "love",
+        "nervousness",
+        "optimism",
+        "pride",
+        "realization",
+        "relief",
+        "remorse",
+        "sadness",
+        "surprise",
+        "neutral"
+      ],
+      "title": "EmotionLabel",
+      "type": "string"
+    },
+    "EmotionScore": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/EmotionLabel"
+        },
+        "p": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "p"
+      ],
+      "title": "EmotionScore",
+      "type": "object"
+    },
+    "EventType": {
+      "description": "What probably happened (brief §0.2, §4.4 E).\n\nProject proposal, not a published taxonomy (docs/research/notes/R3, §2). Built from the\nEmpatheticDialogues situation labels (Rashkin et al. 2019, \"Towards Empathetic Open-domain\nConversation Models: a New Benchmark and Dataset\", ACL 2019), OCC (Ortony, Clore & Collins\n1988, *The Cognitive Structure of Emotions*) and the appraisal dimensions of Smith & Ellsworth\n1985 (J. Pers. Soc. Psychol. 48(4):813-838) as annotated by Hofmann et al. 2020 (COLING).",
+      "enum": [
+        "loss_or_failure",
+        "conflict_or_mistreatment",
+        "achievement_or_success",
+        "threat_or_danger",
+        "uncertainty_about_future",
+        "positive_anticipation",
+        "own_transgression",
+        "social_exposure",
+        "isolation_or_absence",
+        "kindness_or_support_received",
+        "caring_for_others",
+        "comparison_or_envy",
+        "reminiscence",
+        "unexpected_event",
+        "routine_or_wellbeing",
+        "other_or_unclear"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "Explanation": {
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "minLength": 1,
+          "title": "Engine",
+          "type": "string"
+        },
+        "top_features": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Top Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "engine",
+        "top_features"
+      ],
+      "title": "Explanation",
+      "type": "object"
+    },
+    "NeedScore": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/NeedType"
+        },
+        "p": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "p"
+      ],
+      "title": "NeedScore",
+      "type": "object"
+    },
+    "NeedType": {
+      "description": "What the person probably needs (brief §0.3, §4.4 E).\n\nThe first three follow social-support types (emotional, informational, instrumental:\nHouse 1981, *Work Stress and Social Support*; Cutrona & Russell 1990). ``distraction``,\n``rest`` and ``celebration`` come from the brief and have no labelled data yet (R3 §3).",
+      "enum": [
+        "emotional_support",
+        "solution",
+        "information",
+        "distraction",
+        "rest",
+        "celebration"
+      ],
+      "title": "NeedType",
+      "type": "string"
+    },
+    "Pattern": {
+      "additionalProperties": false,
+      "description": "State over time. ``baseline_deviation`` is a z-score; ``None`` until a baseline exists.",
+      "properties": {
+        "baseline_deviation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline Deviation"
+        },
+        "trend": {
+          "$ref": "#/$defs/Trend"
+        },
+        "volatility": {
+          "minimum": 0.0,
+          "title": "Volatility",
+          "type": "number"
+        }
+      },
+      "required": [
+        "baseline_deviation",
+        "trend",
+        "volatility"
+      ],
+      "title": "Pattern",
+      "type": "object"
+    },
+    "PlutchikLabel": {
+      "description": "Plutchik's eight primaries, in wheel order (Plutchik 2001).",
+      "enum": [
+        "joy",
+        "trust",
+        "fear",
+        "surprise",
+        "sadness",
+        "disgust",
+        "anger",
+        "anticipation"
+      ],
+      "title": "PlutchikLabel",
+      "type": "string"
+    },
+    "Situation": {
+      "additionalProperties": false,
+      "description": "Appraisal of the event behind the feeling. ``None`` means \"not estimated\".",
+      "properties": {
+        "event_type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "agent": {
+          "$ref": "#/$defs/Agent"
+        },
+        "goal_congruence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": -1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Goal Congruence"
+        },
+        "controllability": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": -1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Controllability"
+        },
+        "certainty": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": -1.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Certainty"
+        },
+        "evidence_spans": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_type",
+        "agent",
+        "goal_congruence",
+        "controllability",
+        "certainty",
+        "evidence_spans"
+      ],
+      "title": "Situation",
+      "type": "object"
+    },
+    "Trend": {
+      "description": "Direction of the person's state over recent messages (brief §4.7).",
+      "enum": [
+        "improving",
+        "worsening",
+        "stable",
+        "unknown"
+      ],
+      "title": "Trend",
+      "type": "string"
+    },
+    "VAD": {
+      "additionalProperties": false,
+      "description": "Valence, arousal, dominance on the common [-1, 1] scale, with one std per dimension.",
+      "properties": {
+        "valence": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Valence",
+          "type": "number"
+        },
+        "arousal": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "dominance": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Dominance",
+          "type": "number"
+        },
+        "std": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Std",
+          "type": "array"
+        }
+      },
+      "required": [
+        "valence",
+        "arousal",
+        "dominance",
+        "std"
+      ],
+      "title": "VAD",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The universal, domain-neutral output (brief §4.8), versioned by ``schema_version``.\n\n``emotions`` and ``need`` are always stored sorted by ``p``, descending (ties by canonical\norder). ``safety_flag`` is the core's crisis rule (brief §10): products must show human help\nresources instead of a suggestion when it is set; see ``engine.adapters.base.Adapter``.\n``safety_reason`` is a short machine-readable reason and must never quote the user's text.",
+  "properties": {
+    "schema_version": {
+      "const": "0.1",
+      "default": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "language": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Language"
+    },
+    "vad": {
+      "$ref": "#/$defs/VAD"
+    },
+    "emotions": {
+      "items": {
+        "$ref": "#/$defs/EmotionScore"
+      },
+      "title": "Emotions",
+      "type": "array"
+    },
+    "coarse": {
+      "$ref": "#/$defs/Coarse"
+    },
+    "intensity": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Intensity",
+      "type": "number"
+    },
+    "situation": {
+      "$ref": "#/$defs/Situation"
+    },
+    "need": {
+      "items": {
+        "$ref": "#/$defs/NeedScore"
+      },
+      "title": "Need",
+      "type": "array"
+    },
+    "pattern": {
+      "$ref": "#/$defs/Pattern"
+    },
+    "overall_confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Overall Confidence",
+      "type": "number"
+    },
+    "mixed_or_ambiguous": {
+      "title": "Mixed Or Ambiguous",
+      "type": "boolean"
+    },
+    "explanations": {
+      "items": {
+        "$ref": "#/$defs/Explanation"
+      },
+      "title": "Explanations",
+      "type": "array"
+    },
+    "engine_versions": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "propertyNames": {
+        "minLength": 1
+      },
+      "title": "Engine Versions",
+      "type": "object"
+    },
+    "safety_flag": {
+      "default": false,
+      "title": "Safety Flag",
+      "type": "boolean"
+    },
+    "safety_reason": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Safety Reason"
+    }
+  },
+  "required": [
+    "timestamp",
+    "language",
+    "vad",
+    "emotions",
+    "coarse",
+    "intensity",
+    "situation",
+    "need",
+    "pattern",
+    "overall_confidence",
+    "mixed_or_ambiguous",
+    "explanations",
+    "engine_versions"
+  ],
+  "title": "EmotionalStateObject",
+  "type": "object"
+}

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "EmotionLabel": {
+      "description": "Canonical discrete labels: GoEmotions 27 + neutral, in the official emotions.txt order.\n\nMust equal :data:`engine.mappings.labels.GOEMOTIONS_LABELS` (checked at import and by tests).",
+      "enum": [
+        "admiration",
+        "amusement",
+        "anger",
+        "annoyance",
+        "approval",
+        "caring",
+        "confusion",
+        "curiosity",
+        "desire",
+        "disappointment",
+        "disapproval",
+        "disgust",
+        "embarrassment",
+        "excitement",
+        "fear",
+        "gratitude",
+        "grief",
+        "joy",
+        "love",
+        "nervousness",
+        "optimism",
+        "pride",
+        "realization",
+        "relief",
+        "remorse",
+        "sadness",
+        "surprise",
+        "neutral"
+      ],
+      "title": "EmotionLabel",
+      "type": "string"
+    },
+    "VAD": {
+      "additionalProperties": false,
+      "description": "Valence, arousal, dominance on the common [-1, 1] scale, with one std per dimension.",
+      "properties": {
+        "valence": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Valence",
+          "type": "number"
+        },
+        "arousal": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Arousal",
+          "type": "number"
+        },
+        "dominance": {
+          "maximum": 1.0,
+          "minimum": -1.0,
+          "title": "Dominance",
+          "type": "number"
+        },
+        "std": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "minimum": 0.0,
+              "type": "number"
+            }
+          ],
+          "title": "Std",
+          "type": "array"
+        }
+      },
+      "required": [
+        "valence",
+        "arousal",
+        "dominance",
+        "std"
+      ],
+      "title": "VAD",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "engine": {
+      "minLength": 1,
+      "title": "Engine",
+      "type": "string"
+    },
+    "engine_version": {
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "vad": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VAD"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "emotions": {
+      "additionalProperties": {
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "type": "number"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/EmotionLabel"
+      },
+      "title": "Emotions",
+      "type": "object"
+    },
+    "features": {
+      "patternProperties": {
+        "^[A-Za-z0-9_.:\\-]{1,64}$": {
+          "type": "number"
+        }
+      },
+      "title": "Features",
+      "type": "object"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "coverage": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Coverage",
+      "type": "number"
+    }
+  },
+  "required": [
+    "engine",
+    "engine_version",
+    "emotions",
+    "confidence",
+    "coverage"
+  ],
+  "title": "EngineOutput",
+  "type": "object"
+}
