@@ -21,7 +21,6 @@ import http.client
 import json
 import os
 import re
-import socket
 import stat
 import sys
 import tarfile
@@ -405,7 +404,7 @@ def download(
     except urllib.error.URLError as exc:
         part.unlink(missing_ok=True)
         raise FetchError(f"cannot reach {url}: {exc.reason}") from None
-    except (TimeoutError, socket.timeout):
+    except TimeoutError:
         part.unlink(missing_ok=True)
         raise FetchError(f"timed out after {timeout:g}s while fetching {url}") from None
     except http.client.IncompleteRead as exc:
@@ -692,7 +691,7 @@ def _fetch_hf(
             local_dir=str(src_dir),
             etag_timeout=timeout,
         )
-    except Exception as exc:  # huggingface_hub raises many types; report them all clearly
+    except Exception as exc:  # noqa: BLE001 - huggingface_hub raises many types; report all
         raise FetchError(
             f"snapshot of {source.repo_id}@{source.revision} failed: {type(exc).__name__}: {exc}"
         ) from None
@@ -750,3 +749,168 @@ def _check_manual(source: Source, src_dir: Path, *, dry_run: bool) -> SourceResu
     if not dry_run:
         write_source_meta(source, src_dir, [], result.sha256s, homepage=source.homepage)
     return result
+
+
+# --------------------------------------------------------------------------- CLI
+
+
+def select_sources(
+    sources: Sequence[Source], only: Sequence[str] | None, commercial_only: bool
+) -> tuple[list[Source], list[Source]]:
+    """Return (selected, excluded-by-licence). Unknown ``only`` ids raise ``ManifestError``."""
+    chosen = list(sources)
+    if only:
+        known = {s.id for s in sources}
+        unknown = sorted(set(only) - known)
+        if unknown:
+            raise ManifestError(f"--only: unknown source id(s) {unknown}; known: {sorted(known)}")
+        chosen = [s for s in chosen if s.id in set(only)]
+    if not commercial_only:
+        return chosen, []
+    return (
+        [s for s in chosen if s.licence_class == "commercial-OK"],
+        [s for s in chosen if s.licence_class != "commercial-OK"],
+    )
+
+
+def _table(rows: Sequence[Sequence[str]], out: TextIO) -> None:
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    for n, row in enumerate(rows):
+        cells = [cell.ljust(w) for cell, w in zip(row, widths, strict=True)]
+        print("  ".join(cells).rstrip(), file=out)
+        if n == 0:
+            print("  ".join("-" * w for w in widths), file=out)
+
+
+def print_listing(sources: Sequence[Source], out: TextIO) -> None:
+    rows = [["id", "access", "licence_class", "verified", "files", "name"]]
+    for s in sources:
+        count = str(len(s.files)) if s.access == "auto" else {
+            "manual": f"{len(s.expected)} expected", "hf_dataset": f"{s.repo_id}@{s.revision[:8]}"
+        }[s.access]
+        rows.append([s.id, s.access, s.licence_class, str(s.verified).lower(), count, s.name])
+    _table(rows, out)
+
+
+def _status_label(result: SourceResult) -> str:
+    label = result.status.upper() if result.status in {"failed", "missing"} else result.status
+    if result.unpinned and result.status in {"ok", "skipped", "planned"}:
+        label += " (unpinned)"
+    return label
+
+
+def print_summary(results: Sequence[SourceResult], out: TextIO) -> None:
+    rows = [["id", "access", "licence_class", "status", "detail"]]
+    for r in results:
+        rows.append([r.id, r.access, r.licence_class, _status_label(r), r.detail])
+    print(file=out)
+    _table(rows, out)
+
+    unpinned = [r for r in results if r.unpinned and r.access != "manual" and not r.failed]
+    if unpinned:
+        print("\nUnpinned (no lock entry; run with --record-checksums to pin):", file=out)
+        for r in unpinned:
+            shown = ", ".join(r.unpinned[:5]) + (" ..." if len(r.unpinned) > 5 else "")
+            print(f"  {r.id}: {shown}", file=out)
+
+    missing = [r for r in results if r.status == "missing"]
+    if missing:
+        bar = "!" * 78
+        print(f"\n{bar}\nMISSING MANUAL SOURCES ({len(missing)}): these need you.", file=out)
+        for r in missing:
+            print(f"\n  [{r.id}] {r.detail}\n  -> {r.instructions}", file=out)
+        print(bar, file=out)
+
+    failed = [r for r in results if r.failed]
+    if failed:
+        print(f"\nFAILED ({len(failed)}):", file=out)
+        for r in failed:
+            print(f"  {r.id}: {r.detail}", file=out)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="fetch_data.py",
+        description="Fetch datasets and lexicons listed in config/data_sources.toml.",
+    )
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
+    parser.add_argument("--list", action="store_true", help="list sources and exit")
+    parser.add_argument(
+        "--only", action="append", metavar="ID[,ID...]", help="fetch only these source ids"
+    )
+    parser.add_argument("--dry-run", action="store_true", help="show the plan; no network/writes")
+    parser.add_argument(
+        "--commercial-only", action="store_true", help="only licence_class = commercial-OK"
+    )
+    parser.add_argument(
+        "--record-checksums",
+        action="store_true",
+        help="add sha256s of files without a lock entry to the lock file",
+    )
+    parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="seconds per read")
+    return parser
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    out: TextIO | None = None,
+    err: TextIO | None = None,
+    snapshot_download: SnapshotFn | None = None,
+) -> int:
+    """CLI entry point. Exit codes: 0 ok, 1 an auto/hf source failed, 2 usage/manifest error."""
+    out = out or sys.stdout
+    err = err or sys.stderr
+    args = build_parser().parse_args(argv)
+    only = [part.strip() for item in args.only or [] for part in item.split(",") if part.strip()]
+    lock_path = lock_path_for(args.manifest)
+    try:
+        sources = load_manifest(args.manifest)
+        selected, excluded = select_sources(sources, only, args.commercial_only)
+        lock = load_lock(lock_path)
+    except ManifestError as exc:
+        print(f"error: {exc}", file=err)
+        return 2
+
+    if args.list:
+        print_listing(selected, out)
+        if excluded:
+            print(f"\nexcluded by --commercial-only: {', '.join(s.id for s in excluded)}", file=out)
+        return 0
+
+    if excluded:
+        print(
+            f"--commercial-only: excluded {len(excluded)} source(s) that are not commercial-OK: "
+            f"{', '.join(s.id for s in excluded)}",
+            file=out,
+        )
+    if any(not s.verified for s in selected):
+        print("note: licence classes are unverified (verified = false); check before use.", file=out)
+
+    before = json.dumps(lock, sort_keys=True)
+    results = []
+    for source in selected:
+        print(f"[{source.id}] {source.access} ...", file=out, flush=True)
+        results.append(
+            fetch_source(
+                source,
+                args.data_dir,
+                lock,
+                record=args.record_checksums and not args.dry_run,
+                dry_run=args.dry_run,
+                timeout=args.timeout,
+                snapshot_download=snapshot_download,
+            )
+        )
+    if args.record_checksums and not args.dry_run and json.dumps(lock, sort_keys=True) != before:
+        save_lock(lock_path, lock)
+        print(f"recorded checksums in {lock_path}", file=out)
+
+    print_summary(results, out)
+    failed = any(r.failed and r.access in {"auto", "hf_dataset"} for r in results)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

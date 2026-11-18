@@ -591,3 +591,120 @@ def test_hf_dataset_error_is_reported(tmp_path: Path) -> None:
     result = fd.fetch_source(source, tmp_path / "raw", {}, snapshot_download=broken)
     assert result.failed
     assert "no route to host" in result.detail
+
+
+# --------------------------------------------------------------------------- CLI
+
+
+def cli_setup(tmp_path: Path, base: str, handler: type[_Handler]) -> tuple[Path, Path]:
+    handler.routes["/free.txt"] = b"free"
+    handler.routes["/nc.txt"] = b"nc"
+    body = (
+        auto_source(sid="free", url=f"{base}/free.txt", dest="free.txt")
+        + auto_source(sid="nc", url=f"{base}/nc.txt", dest="nc.txt", licence_class="research-only")
+        + manual_source()
+    )
+    return write_manifest(tmp_path, body), tmp_path / "raw"
+
+
+def run_cli(manifest: Path, data_dir: Path, *args: str) -> int:
+    return fd.main(["--manifest", str(manifest), "--data-dir", str(data_dir), *args])
+
+
+def test_cli_list(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    assert run_cli(manifest, data_dir, "--list") == 0
+    out = capsys.readouterr().out
+    for sid in ("free", "nc", "hand"):
+        assert sid in out
+    assert "research-only" in out
+    assert not data_dir.exists()
+
+
+def test_cli_fetch_all_reports_missing_manual_but_exits_zero(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    assert run_cli(manifest, data_dir) == 0
+    out = capsys.readouterr().out
+    assert (data_dir / "free" / "free.txt").is_file()
+    assert (data_dir / "nc" / "nc.txt").is_file()
+    assert "MISSING" in out
+    assert "Log in at example.org" in out
+    assert "unpinned" in out
+    assert not fd.lock_path_for(manifest).exists(), "lock is only written by --record-checksums"
+
+
+def test_cli_commercial_only(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    assert run_cli(manifest, data_dir, "--commercial-only") == 0
+    out = capsys.readouterr().out
+    assert (data_dir / "free" / "free.txt").is_file()
+    assert not (data_dir / "nc").exists()
+    assert not (data_dir / "hand").exists()
+    assert "nc" in out and "excluded" in out
+
+
+def test_cli_only_and_unknown_id(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    assert run_cli(manifest, data_dir, "--only", "nc") == 0
+    assert (data_dir / "nc" / "nc.txt").is_file()
+    assert not (data_dir / "free").exists()
+    assert run_cli(manifest, data_dir, "--only", "nope") == 2
+    assert "nope" in capsys.readouterr().err
+
+
+def test_cli_dry_run_touches_nothing(tmp_path: Path, server, monkeypatch, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+
+    def no_network(*a: object, **k: object) -> None:
+        raise AssertionError("dry run used the network")
+
+    monkeypatch.setattr(fd.urllib.request, "urlopen", no_network)
+    assert run_cli(manifest, data_dir, "--dry-run", "--record-checksums") == 0
+    assert not data_dir.exists()
+    assert not fd.lock_path_for(manifest).exists()
+    assert "would download" in capsys.readouterr().out
+
+
+def test_cli_failure_exits_one(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    del server[1].routes["/nc.txt"]
+    assert run_cli(manifest, data_dir) == 1
+    assert "FAILED" in capsys.readouterr().out
+    assert (data_dir / "free" / "free.txt").is_file(), "one failure does not stop the others"
+
+
+def test_cli_record_checksums_then_verify(tmp_path: Path, server, capsys) -> None:
+    manifest, data_dir = cli_setup(tmp_path, *server)
+    assert run_cli(manifest, data_dir, "--record-checksums") == 0
+    lock = fd.load_lock(fd.lock_path_for(manifest))
+    assert lock == {"free": {"free.txt": sha(b"free")}, "nc": {"nc.txt": sha(b"nc")}}
+
+    server[1].routes["/nc.txt"] = b"changed upstream"
+    (data_dir / "nc" / "nc.txt").unlink()
+    assert run_cli(manifest, data_dir) == 1
+    assert (data_dir / "nc" / "nc.txt.bad").read_bytes() == b"changed upstream"
+    assert "mismatch" in capsys.readouterr().out
+
+
+def test_cli_bad_manifest_exits_two(tmp_path: Path, capsys) -> None:
+    manifest = write_manifest(tmp_path, auto_source(licence_class="whatever"))
+    assert run_cli(manifest, tmp_path / "raw") == 2
+    assert "licence_class" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- network
+
+
+@pytest.mark.network
+@pytest.mark.parametrize(
+    "url",
+    [f.url for s in fd.load_manifest(REAL_MANIFEST) if s.access == "auto" for f in s.files],
+)
+def test_auto_urls_are_reachable(url: str) -> None:
+    """HEAD-check every auto URL in the real manifest (no body is downloaded)."""
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": fd.USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            assert response.status < 400
+    except urllib.error.HTTPError as exc:
+        pytest.fail(f"{url}: HTTP {exc.code}")
