@@ -124,3 +124,14 @@ def test_bad_probability_raises(fn: Aggregate, bad: float) -> None:
 def test_bool_probability_rejected(fn: Aggregate) -> None:
     with pytest.raises(TypeError):
         fn({"joy": True})
+
+
+def test_noisy_or_is_exact_for_a_single_member_and_tiny_probabilities() -> None:
+    """1 - (1 - p) loses precision: 0.1 became 0.09999999999999998 and 1e-17 became 0."""
+    assert L.to_ekman({"disgust": 0.1})["disgust"] == 0.1
+    assert L.to_ekman({"disgust": 1e-17})["disgust"] == 1e-17
+    assert L.to_ekman({"fear": 1e-17, "nervousness": 1e-17})["fear"] >= 1e-17
+    for p in (0.1, 0.3, 0.7, 1e-300, 5e-324):
+        out = L.to_plutchik({"joy": p, "amusement": p})
+        assert out["joy"] >= p
+    assert L.to_ekman({"joy": 1.0, "love": 1.0})["joy"] == 1.0

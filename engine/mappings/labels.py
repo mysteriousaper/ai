@@ -21,7 +21,7 @@ usually fire together); fusion calibration (brief §4.6) has to correct for that
 """
 
 from collections.abc import Mapping
-from math import isfinite
+from math import expm1, fsum, isfinite, log1p
 from numbers import Real
 
 # --- Pinned upstream data ---------------------------------------------------------------------
@@ -208,10 +208,15 @@ def _noisy_or(probs: Mapping[str, float], table: Mapping[str, tuple[str, ...]]) 
     _check(probs)
     out: dict[str, float] = {}
     for coarse, members in table.items():
-        miss = 1.0
-        for m in members:
-            miss *= 1.0 - float(probs.get(m, 0.0))
-        out[coarse] = min(1.0, max(0.0, 1.0 - miss))
+        ps = [float(probs.get(m, 0.0)) for m in members]
+        strongest = max(ps, default=0.0)
+        if strongest >= 1.0:
+            out[coarse] = 1.0
+            continue
+        # 1 - prod(1 - p) computed as -expm1(sum(log1p(-p))): plain 1 - (1 - p) loses the low
+        # bits (0.1 -> 0.09999999999999998, 1e-17 -> 0). The floor keeps the documented
+        # "never below its strongest member" exact under rounding.
+        out[coarse] = min(1.0, max(strongest, -expm1(fsum(log1p(-p) for p in ps))))
     return out
 
 
