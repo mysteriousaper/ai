@@ -1,29 +1,168 @@
-# V3 - Verification: keystroke literature, embedders, ISEAR/ANEW/SemEval/DailyDialog, Russian and Armenian resources
+# V3 - Verification: keystroke literature, embedders, ANEW/ISEAR/SemEval/DailyDialog, Russian and Armenian resources
 
-Verifier agent, 2026-11-18. Status: IN PROGRESS (skeleton written first in case of container restart).
+Verifier agent, 2026-11-18. Checked: R2 Part B (embedder licences, hy/ru coverage) and Part C (keystroke literature);
+R1 §1 ANEW, §8 ISEAR / DailyDialog / SemEval-2018, §10 Russian, §11 Armenian. V1 covered the other items.
 
-Scope: R2 Part B (embedder licences, hy/ru coverage), R2 Part C (keystroke literature); R1 §1 ANEW, §8 ISEAR /
-DailyDialog / SemEval-2018, §10 Russian, §11 Armenian.
+**Access this run.** I could reach `huggingface.co` (API, cards, files), `raw.githubusercontent.com`, and `saifmohammad.com`.
+Every paper host was blocked to both curl and WebFetch: arxiv, dl.acm.org, PMC and ncbi, MDPI, PLoS, medRxiv, Zenodo,
+JMIR, Frontiers, IEEE DataPort, csea.phhp.ufl.edu, labinform.ru, aclanthology, codalab, yanran.li, openslr.org,
+web.archive.org, crossref and openalex. `www.unige.ch` returns a 403 bot wall. WebSearch works, so Part C and several
+licences rest on **search snippets of the abstracts or listing pages** (marked `snippet` below). Spikes ran in the
+scratchpad, never in the repo.
 
 ## Verdict summary
-(pending)
+
+| Verdict | Count |
+|---|---|
+| verified | 30 |
+| corrected | 11 |
+| unverified | 6 |
+| wrong | 1 |
+
+48 claims in total.
+
+The five corrections that matter most:
+
+1. **The "Leow et al. 2019 / BiAffect" VAD AUC claim is wrong (R2 C5).** The 3-level valence/arousal/dominance AUC figures
+   of up to 0.84/0.82/0.82 come from **Wampfler, Klingler, Solenthaler, Schinazi & Gross (ETH Zurich, 2020)**, "Affective
+   State Prediction Based on Semi-Supervised Learning from Smartphone Touch Data". It had 70 participants and used a VAE
+   on touch heat maps, **not keystroke timing**, and it is not a BiAffect paper. It does not support engine D's
+   timing-only design. (Snippet.)
+2. **The honest field number is lower than R2 C7 guessed.** Naegelin et al. 2025 (medRxiv preprint, N = 36, 8 weeks,
+   in the field) report Spearman rho = **0.078** for the one-model-for-all approach (leave-one-subject-out), 0.096 with
+   time-series features, and **0.188** for personalised models (blocked CV). Use rho of about 0.05-0.2 as the prior, not
+   r of 0.1-0.3. Naegelin 2023's F1 figures (0.625/0.631/0.775) used **10-fold CV** on N = 90, with no stated subject
+   grouping, so they may share R2's identity-leakage problem. (Snippet.)
+3. **ANEW, ISEAR and RuSentiLex are effectively `research-only`, not `needs-licence` / `unclear`.**
+   - ANEW Statement of Use: "I agree that I will not provide the ANEW materials to profit making companies or
+     organizations". Licence: "For non-profit academic research purposes".
+   - ISEAR: the CISA research-material page offers its materials to qualified researchers "for use in non-commercial
+     research projects".
+   - RuSentiLex is CC BY-NC-SA 4.0 (author statement relayed by the `rulexicon` R package).
+   - All three are secondary sources, because the official pages are unreachable.
+4. **The Armenian embedder `Metric-AI/armenian-text-embeddings-2-base` is trained on non-commercial data.** Its only
+   training set, `Metric-AI/reddit_10K_hye`, is tagged `license:cc-by-nc-4.0`. It is Reddit text machine-translated with
+   Gemma-2-27B-it, so Gemma terms may also flow down. The MIT tag on the weights does not clean that. Keep it `unclear`
+   and treat it as research-only. Do not ship it.
+5. **`all-MiniLM-L6-v2` cannot read Armenian.** In a tokenizer spike, an Armenian sentence came out as `[UNK]` and
+   fragments. e5-small, paraphrase-multilingual-MiniLM, LaBSE and arctic-embed-m-v2.0 produced no UNK tokens for the same
+   hy and ru sentences. Any English-only fast path must therefore be gated by language ID. Two smaller fixes:
+   - Kołakowska's public dataset uses reversed pleasure and arousal scales ("the lower the value the state is more
+     positive or more aroused").
+   - Snowflake arctic-embed-m-v2.0 needs `trust_remote_code`.
 
 ## Claim table
-(pending)
+
+### R2 Part B: embedders (HF API `/api/models/<id>`, `sentence_bert_config.json`, card README; tokenizer spike)
+
+| # | Claim (short) | Source note | Verdict | Evidence (quote + URL) |
+|---|---|---|---|---|
+| 1 | all-MiniLM-L6-v2: Apache-2.0, 22.7M, 256 tokens, English only, ONNX | R2 B | verified (+ added) | API `license:apache-2.0`, safetensors 22,713,728; `{"max_seq_length":256}`; `onnx/model.onnx` present. Spike: the Armenian sentence tokenises to `[UNK]` (7 UNK in the first tokens), so it is unusable for hy. https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2 |
+| 2 | all-mpnet-base-v2: Apache-2.0, 109.5M, max 384 "(recollection)" | R2 B | verified | `license:apache-2.0`, 109,486,978 params, `{"max_seq_length":384}`, ONNX present. https://huggingface.co/sentence-transformers/all-mpnet-base-v2 |
+| 3 | paraphrase-multilingual-MiniLM-L12-v2: Apache-2.0, 117.7M, hy + ru, 128 "(unconfirmed)" | R2 B | verified | `license:apache-2.0`, 117,654,272 params, tags include `hy` and `ru` (50 language tags), `{"max_seq_length":128}`, ONNX present; spike 0 UNK for hy and ru. https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 |
+| 4 | LaBSE: Apache-2.0, 470.9M, 256, hy + ru | R2 B | verified | `license:apache-2.0`, 470,927,360 params, 111 language tags incl. `hy` and `ru`, `{"max_seq_length":256}`, `onnx/model.onnx`; spike 0 UNK, whole-word Armenian tokens. https://huggingface.co/sentence-transformers/LaBSE |
+| 5 | multilingual-e5-small: MIT, 117.7M, 512, hy + ru, ONNX, prefixes required | R2 B | verified (caveat added) | `license:mit`, 117,654,272 params, `hy` and `ru` tags, `{"max_seq_length":512}`, `onnx/model.onnx` plus `model_qint8_avx512_vnni.onnx`. Card: "Each input text should start with \"query: \" or \"passage: \", even for non-English texts" and "It supports 100 languages from xlm-roberta, but low-resource languages may see performance degradation." Armenian is low-resource, so evaluate on our own hy data. https://huggingface.co/intfloat/multilingual-e5-small |
+| 6 | multilingual-e5-base: MIT, 278.0M, hy + ru | R2 B | verified | `license:mit`, 278,044,162 params, `hy` and `ru` tags, ONNX present. https://huggingface.co/intfloat/multilingual-e5-base |
+| 7 | multilingual-e5-large-instruct: MIT, 559.9M, hy + ru, ONNX | R2 B | verified | `license:mit`, 559,890,432 params, `hy` and `ru` tags, `onnx/model.onnx`. https://huggingface.co/intfloat/multilingual-e5-large-instruct |
+| 8 | BGE-M3: MIT, ~568M "(snippet)", 8192 tokens, "100+ languages", hy unverified | R2 B | verified (params now primary) | `license: mit`; `pytorch_model.bin` is 2,271,145,830 B at fp32, about 568M params; config is XLMRobertaModel with 24 layers, hidden size 1024 and vocab 250,002; `{"max_seq_length":8192}`; card: "It can support more than 100 working languages." No language tags, so Armenian support beyond the XLM-R vocabulary remains unverified. https://huggingface.co/BAAI/bge-m3 |
+| 9 | embeddinggemma-300m: Gemma terms, gated -> `needs-licence` | R2 B | verified | `license:gemma`, `gated=manual`, 302,863,104 params; files return "Access to model google/embeddinggemma-300m is restricted". https://huggingface.co/google/embeddinggemma-300m |
+| 10 | Qwen3-Embedding-0.6B: Apache-2.0, 595.8M, dim and context "n/a" | R2 B | corrected (gaps filled) | `license: apache-2.0`, 595,776,512 params. Card: "Supported Languages: 100+ Languages", "Context Length: 32k", "Embedding Dimension: Up to 1024". No ONNX in the repo; no per-language list, so hy is unverified. https://huggingface.co/Qwen/Qwen3-Embedding-0.6B |
+| 11 | snowflake-arctic-embed-m-v2.0: Apache-2.0, 305.4M, hy tag, ONNX | R2 B | corrected (caveat) | Licence, params, `hy`/`ru` tags and ONNX (incl. int8) all verified; spike 0 UNK. **But** `config.json` `auto_map` -> `modeling_hf_alibaba_nlp_gte.GteModel`, so it needs `trust_remote_code`, the same audit flag as UltraBERT. Card: "builds on GTE-multilingual-base which can support a context window of up to 8192". https://huggingface.co/Snowflake/snowflake-arctic-embed-m-v2.0 |
+| 12 | jina-embeddings-v3: CC-BY-NC-4.0, excluded | R2 B | verified | `license:cc-by-nc-4.0`, 572,310,396 params. https://huggingface.co/jinaai/jina-embeddings-v3 |
+| 13 | Metric-AI ATE-2-base: MIT, base e5-base, hy, data licence "not checked" -> `unclear` | R2 B / machine-readable | corrected | Card: `base_model: intfloat/multilingual-e5-base`, `license: mit`, `datasets: Metric-AI/reddit_10K_hye`. That dataset is `license:cc-by-nc-4.0`, and its card says "subset of the Reddit dataset ... translated with the Gemma-2-27B-it model ... Refer to the original dataset for applicable licensing terms." Tags `hy` only (no `ru`). Class `unclear`, treat as research-only. https://huggingface.co/Metric-AI/armenian-text-embeddings-2-base ; https://huggingface.co/datasets/Metric-AI/reddit_10K_hye |
+| 14 | PL-MTEB averages 60.55 / 61.66 / 56.91 | R2 B | unverified | arxiv.org is blocked, so I could not open arXiv 2405.10138. Polish only in any case, so it is not decision-relevant. |
+
+### R2 Part C: keystroke literature
+
+| # | Claim (short) | Source note | Verdict | Evidence (quote + URL) |
+|---|---|---|---|---|
+| 15 | Epp, Lippold & Mandryk CHI 2011: 15 states, fixed text, experience sampling, ~84% for some states; sample size unknown | R2 C1 | unverified (consistent) | The ACM DL is blocked. Secondary summaries agree on the design: "users labeled the data with their level of agreement with 15 emotional states and provided additional keystrokes by typing fixed pieces of text"; decision trees on dwell and latency; at least 2 levels of confidence, hesitance, nervousness, relaxation, sadness and tiredness; "84%" for anger and excitement; one review gives "77-88%". One secondary review says **26 participants over ~4 weeks**; I could not confirm this. https://dl.acm.org/doi/10.1145/1978942.1979046 ; https://sarinregmi-hci-2011.blogspot.com/2011/11/paper-reading-31-identifying-emotional.html |
+| 16 | Zimmermann et al. 2003, IJOSE 9(4), DOI 10.1080/10803548.2003.11076589; feasibility paper; N not retrieved | R2 C2 | verified (bibliographic) | Snippet: "feasibility study of a new behavioral method for measuring user affect using standard computer input devices"; SAM + semantic differential; pp. 539-551. A mobile-affective-computing survey (arXiv 1410.1648) attributes "96 students (46 female, 50 male, aged between 17 and 38)" and an online-shopping task to Zimmermann et al. That is unconfirmed and may describe a later study. Treat as motivation only, as R2 says. https://serval.unil.ch/notice/serval:BIB_28753 |
+| 17 | Kołakowska & Landowska, Sensors 21(17):5963: ~50 participants, dataset 245 vectors = 5 x 49, 51 features | R2 C3 | verified (primary for the dataset) | The authors' repo README: "There are 245 vectors (rows) containing 51 features (columns). For each of 49 participants 5 feature vectors were extracted". Abstract snippet: "A semi-experiment with 50 participants was performed." https://raw.githubusercontent.com/agatakol/Keystroke-dynamics-patterns-while-writing-positive-and-negative-opinions/main/README.md |
+| 18 | Same paper: best F1 ~0.76 (SVM); PA labels beat polarity labels | R2 C3 | unverified (direction verified) | The abstract snippet confirms direction: polarity classification gave "accuracy slightly above the random guess level", and the pleasure/arousal self-report approach "showed more accurate results". The 0.76 SVM F1 was not found in any snippet; MDPI and PMC are blocked. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8434638/ |
+| 19 | (new) Kołakowska dataset label scales and licence | R2 C3 | corrected (added) | README: "pleasure, arousal, dominance were all reported using a 9-point Likert scale. In the case of pleasure and arousal the lower the value the state is more positive or more aroused respectively." So **P and A are reversed** relative to the Engine's convention. The repo has **no LICENSE file** (LICENSE, LICENSE.md and LICENSE.txt all 404 on main and master), so it is `unclear` with default copyright and usable only for internal validation. Its features need key identity (digraph and trigraph timings, left/right shift, arrows, SPEED), so only part of them map onto our category-only logging. |
+| 20 | Brief mis-cites "Kołakowska & Landowska 2021 review"; the 2021 review is Yang & Qin, IEEE Access 9:162197-162213 | R2 C3 | verified (author order corrected) | Snippet (Northumbria record and DOAJ): "IEEE Access, Volume 9, pages 162197-162213", DOI 10.1109/ACCESS.2021.3132233, authors **Liying Yang and Sheng-Feng Qin**. Kołakowska 2013 is the review "A review of emotion recognition methods based on keystroke dynamics and mouse movements" (Gdańsk repository). https://researchportal.northumbria.ac.uk/en/publications/a-review-of-emotion-recognition-methods-from-keystroke-mouse-and-/ |
+| 21 | EmoSurv: 124 participants; 5 labels; licence non-commercial, no redistribution; free IEEE login | R2 C4 / R1 §9 | verified (snippet; licence still not verbatim) | DataPort listing snippet: "A total of 124 participants visited EmoSurv and logged information"; the grant gives a "revocable, non-exclusive, non-transferable" right "only for non-commercial, educational, and research purposes", and bars copying, making the data available to the public, selling, renting or lending. Files are "accessible to all logged in users". The listing's **"License" field is blank** (no CC licence). `research-only` stands. https://ieee-dataport.org/open-access/emosurv-typing-biometric-keystroke-dynamics-dataset-emotion-labels-created-using |
+| 22 | EmoSurv 93.922% accuracy (Random Committee); Marrone & Sansone 30-s windows | R2 C4 | unverified | Hosts blocked; no snippet confirmed either number. R2's advice not to quote these numbers stands. |
+| 23 | Lee, Tsui & Hsiao 2014: 27 subjects aged 19-27; emotion effect p < .001 on duration, latency, accuracy | R2 C5 | verified (snippet) + strengthens C7 | Snippet of the PMC record: "Twenty-seven subjects ranging in age between 19 and 27 (M = 21.5, SD = 2.3)"; "The effect of emotion is significant (p < .001) in the keystroke duration, keystroke latency, and accuracy rate"; and the authors' own words: "**the size of the emotional effect is small, compare to the individual variability**." Title: "The influence of emotion on keyboard typing: an experimental study using visual stimuli", DOI 10.1186/1475-925X-13-81. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4091769/ |
+| 24 | ACII 2019 "How you type is what you type": ~400 MTurk participants; dwell with valence, flight with arousal, per-image means | R2 C5 | verified (sign clarified) | Snippet (Zenodo abstract): 400 participants captioned rated images; per-image averages showed "a statistically significant **negative** correlation between dwell times and valence, and between flight times and arousal". First author Hector Lopez-Carral (Crossref). Both correlations are negative and at image level. https://zenodo.org/records/4534138 |
+| 25 | Naegelin 2023 J Biomed Inform: F1 0.625 / 0.631 / 0.775 (stress, arousal, valence), lab | R2 C5 | corrected (adds N and CV) | Snippet: N = 90, simulated group office; "10-fold cross-validation"; gradient boosting with mouse + keyboard features gave "average F1 scores of 0.625, 0.631, and 0.775 for multiclass prediction of perceived stress, arousal, and valence". JBI 139:104299, DOI 10.1016/j.jbi.2023.104299. The snippet does not say whether folds were grouped by subject, so identity leakage is possible. https://research.bond.edu.au/en/publications/an-interpretable-machine-learning-approach-to-multimodal-stress-d/ |
+| 26 | Naegelin 2025 medRxiv field study: N = 36, 8 weeks, personalised beats global, numbers not retrieved | R2 C5 | corrected (numbers found) | Snippet of the abstract: one-fits-all (LOSO) "Spearman's rho = 0.078", 0.096 with time-series features; personalised XGBoost (blocked CV) "average Spearman's rho of 0.188"; "robust in-field stress detection remains challenging". Still a preprint. https://www.medrxiv.org/content/10.1101/2025.08.02.25332538v1.full |
+| 27 | BiAffect JMIR 2018: average inter-key delay predicted depression and mania scores | R2 C5 | corrected (result reported precisely) | Snippet: Zulueta et al., 8 weeks, custom Android keyboard. The HDRS-17 mixed-effects model was significant ("conditional R² = .63, P = .01"); YMRS used OLS ("R² = .34, P = .001"). The specific inter-key-delay coefficient was not seen. Clinical bipolar sample, week-scale clinician ratings. DOI 10.2196/jmir.9775. https://www.jmir.org/2018/7/e241 |
+| 28 | "Leow et al. 2019" semi-supervised touch typing: 3-level V/A/D AUC 0.84/0.82/0.82 | R2 C5 | **wrong** (misattributed) | The figures belong to Wampfler et al. 2020, "Affective State Prediction Based on Semi-Supervised Learning from Smartphone Touch Data" (ETH): "touch data collected from 70 participants in text conversations", a VAE on 2-D touch heat maps; "valence (AUC up to 0.84), arousal (AUC up to 0.82), and dominance (AUC up to 0.82)". The CHI 2022 follow-up has 82 participants in the wild. These are touch, not keystroke-timing, features, so they are not evidence for engine D. https://research-collection.ethz.ch/bitstream/handle/20.500.11850/442912/AffectiveStatePredictionBasedonSemi-SupervisedLearningfromSmartphoneTouchData.pdf |
+| 29 | C6 recommended feature list (dwell, flight, speed, pauses, backspace, bursts, rhythm, covariates, category-pair timings) | R2 C6 | verified as reasonable inference (not literature-validated) | The basis holds: dwell and flight (ACII 2019, negative correlations), duration and latency (Lee 2014), backspace frequency and speed (Kołakowska features). "Typing instability (BiAffect)" was not seen in any snippet. Pause, burst and net-to-gross features are design inference, not cited evidence. Per-person z-scoring is strongly supported by Lee 2014 ("small, compare to the individual variability") and Naegelin 2025 (personalised beats global). |
+| 30 | C7 expected signal "r of order 0.1-0.3" | R2 C7 | corrected | The best field evidence (Naegelin 2025) gives rho 0.08 (global) to 0.19 (personalised) for stress. Use rho of about 0.05-0.2 as the prior and keep the low fusion weight. |
+
+### R1: ANEW, ISEAR, DailyDialog, SemEval-2018, Russian, Armenian
+
+| # | Claim (short) | Source note | Verdict | Evidence (quote + URL) |
+|---|---|---|---|---|
+| 31 | ANEW: 1,034 words, 1-9 SAM; signed agreement; class `needs-licence` | R1 §1 | corrected -> `research-only` | The quanteda.sentiment docs reproduce the CSEA statement: "@section License: For non-profit academic research purposes." and "In accepting the ANEW materials, I agree not to make the ANEW available to the media ... or to place them on any internet or computer-accessible websites ... I also agree that I will not provide the ANEW materials to profit making companies or organizations". Secondary, because csea.phhp.ufl.edu is blocked. https://raw.githubusercontent.com/quanteda/quanteda.sentiment/master/R/data-documentation.R |
+| 32 | ISEAR: licence not found -> `unclear` | R1 §8 | corrected -> `research-only` | Snippet of the CISA Research Material page (where ISEAR is item 6): materials offered free of charge to "qualified emotion researchers, irrespective of their discipline, for use in non-commercial research projects". Not ISEAR-specific wording, and the page itself returns 403. Size "7,666" unverified; a snippet says "close to 3000 respondents in 37 countries". https://www.unige.ch/cisa/research/materials-and-online-research/research-material/ |
+| 33 | ISEAR HF copies (e.g. `savalera/isear-from-original`, apache-2.0) are self-declared, so ignore them | R1 §8 | verified | API: `license:apache-2.0`, sha 9741e2c3fc20757958c9b67ce61aa09016be6cd8. No authority from Geneva. https://huggingface.co/datasets/savalera/isear-from-original |
+| 34 | DailyDialog: CC BY-NC-SA 4.0; 11,118/1,000/1,000; roskoN train.zip 1,935,190 B; 7 labels | R1 §8 | verified (+ label skew) | roskoN README: "DailyDialog dataset is licensed under CC BY-NC-SA 4.0. ... Note the dataset may not be adopted for commercial use." `li2017dailydialog/daily_dialog` tag `license:cc-by-nc-sa-4.0`. HEAD: train 1,935,190 B, validation 180,450 B, test 178,601 B. Counted 11,118 / 1,000 / 1,000 dialogues. Train utterance labels: 0 = 72,143 (**82.8% "no emotion"**), 4 happiness = 11,182, 6 surprise = 1,600, 5 sadness = 969, 1 anger = 827, 2 disgust = 303, 3 fear = 146. yanran.li is unreachable. https://huggingface.co/datasets/roskoN/dailydialog |
+| 35 | SemEval-2018 Task 1: zip 5,975,590 B; README "Do not redistribute"; E-c En 6,838/886/3,259; 11 emotions | R1 §8 | verified (+ zip hygiene) | HEAD 200, Content-Length 5975590. README: "2. Do not redistribute the data. Direct interested parties to this page: https://competitions.codalab.org/competitions/17751." Counted E-c English: train 6,838, dev 886, test-gold 3,259; header `anger anticipation disgust fear joy love optimism pessimism sadness surprise trust`. The zip contains `__MACOSX/._*` junk files with the same names, which a loader must skip. https://saifmohammad.com/WebDocs/AIT-2018/AIT2018-DATA/SemEval2018-Task1-all-data.zip |
+| 36 | SemEval-2018 HF script copy has licence "unknown" | R1 §8 | verified | `SemEvalWorkshop/sem_eval_2018_task_1` tag `license:unknown`. https://huggingface.co/datasets/SemEvalWorkshop/sem_eval_2018_task_1 |
+| 37 | CEDR: Apache-2.0 repo; 9,410 (HF) / 9,668 (paper); 7,528/1,882; LiveJournal, Lenta.ru, Twitter -> `unclear` | R1 §10 | verified | The raw `LICENSE` is Apache License 2.0. README: "the total number of examples was reduced from 9668 to 9410"; "3069 sentences were selected from LiveJournal posts, 2851 sentences from Lenta.Ru, and 3490 sentences from Twitter". The HF card has num_examples 7528 / 1882 and "The GitHub repository which houses this dataset has an Apache License 2.0." Labels `{0: joy, 1: sadness, 2: surprise, 3: fear, 4: anger}`. https://raw.githubusercontent.com/sag111/CEDR/master/README.md ; https://huggingface.co/datasets/sagteam/cedr_v1 |
+| 38 | ru_go_emotions: MIT tag; Google Translate via deep-translator -> `unclear` | R1 §10 | verified | Card: "license: mit"; "I used the Deep translator with the Google engine." Simplified splits 43,410 / 5,426 / 5,427; raw 211,225. deep-translator drives the free Google web translator, which adds a ToS question on top of the Reddit provenance. https://huggingface.co/datasets/seara/ru_go_emotions |
+| 39 | Other GoEmotions-RU copies: Djacon (mit), AiLab-IMCS-UL (apache-2.0), SkyWater21 (mit) | R1 §10 | verified | API tags exactly as stated. The AiLab card: "machine translated ... using the free Google Translate API (with deep-translator)". |
+| 40 | RuSentiLex: licence not found -> `unclear` | R1 §10 | corrected -> `research-only` | The `rulexicon` R package docs: "According to information from Natalya Loukachevitch the lexicon RuSentiLex is published under Creative Commons \"Attribution-NonCommercial-ShareAlike\" 4.0 International License (CC BY-NC-SA 4.0)." Files listed as `https://www.labinform.ru/pub/rusentilex/rusentilex_2016.txt` and `..._2017.txt`; the host is blocked, so these are not HEAD-checked. https://raw.githubusercontent.com/dmafanasyev/rulexicon/master/R/hash_rusentilex_2017.R |
+| 41 | Chen & Skiena lexicons: GPL-3.0; hy 720 + 937, ru 1,266 + 1,648 -> `needs-licence` | R1 §10-11 | verified | Card: "It is distributed here under the GNU General Public License ... does not allow its incorporation into any type of distributed proprietary software, even in part or in translation. For commercial applications please contact the dataset creators". data.zip HEAD 200, 1,621,755 B; I counted hy 720 / 937 and ru 1,266 / 1,648. https://huggingface.co/datasets/senti-lex/senti_lex |
+| 42 | Russian VAD norms (ENRuN, Solovyev, Kazan): licences not verified | R1 §10 | unverified | Hosts blocked; nothing new found. |
+| 43 | nigkal/ArmenianNLP: CC BY-NC 4.0 -> `research-only` | R1 §11 | verified | README: "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License". The `LICENSE` file (19,414 B) is the CC BY-NC 4.0 legal code. README emotion-recognition table: ArmBERT accuracy 0.774, F 0.772 (split not stated, self-reported). The file tree is still not inspectable (GitHub API not enabled for this session). https://raw.githubusercontent.com/nigkal/ArmenianNLP/main/README.md |
+| 44 | Elen22 Armenian news sentiment: apache-2.0 tag, gated; train/dev Google-translated SST/MELD/SLSD; test 956 (295/476/185) | R1 §11 | verified (now primary) | The card is readable (only the files are gated: `hy_sentiment_.zip` returns 401). "we translated the Stanford Sentiment Treebank, MELD, and SLSD datasets into Armenian using Google Translate"; train 15,983, dev 4,179; "The test set contains 956 examples in total (295 negative, 476 neutral, 185 positive)." Created at the Russian-Armenian University. `unclear` stands; the only clean part is the 956-item test set, which suits evaluation. https://huggingface.co/datasets/Elen22/Armenian-news-sentiment-dataset |
+| 45 | OpenSLR SLR153 Armenian news text, CC BY-SA 4.0, unlabelled | R1 §11 | verified (snippet) | OpenSLR listing snippet: CC BY-SA 4.0, Armenian news articles 2017-2021 from Qaghaki Amsagir LLC, 373 MB archive. openslr.org is blocked, so this is not HEAD-checked. https://openslr.org/153/ |
+| 46 | EdUarD0110/arm_sent_pairs_130k: MIT, no sentiment labels | R1 §11 | verified | API `license:mit`; single file `arm_sent_pairs.csv`. https://huggingface.co/datasets/EdUarD0110/arm_sent_pairs_130k |
+| 47 | Armenian HF tokenizer coverage of the recommended embedder (implicit in "hy yes") | R2 B / R1 §11 | verified (spike) | Spike with tokenizers 0.23.3, on "Այսօր ես շատ տխուր եմ, որովհետև կորցրեցի իմ աշխատանքը։" and a matching Russian sentence. e5-small: 18 tokens, 0 UNK (`▁Այսօր ▁ես ▁շատ ▁տ խ ուր ▁եմ`). LaBSE: 16 tokens, 0 UNK. Token coverage only; semantic quality on Armenian is untested. |
+| 48 | Armenian AUB ScholarWorks paper (sentiment + emotion with BiLSTM) | R1 §11 / R2 sources | unverified | scholarworks.aub.edu.lb is blocked. |
+
+## Machine-readable
+
+```json
+[
+  {"id": "anew", "licence": "CSEA ANEW Statement of Use: non-profit academic research only (secondary: quanteda.sentiment docs)", "class": "research-only", "access": "manual", "download_urls": [], "verdict": "corrected"},
+  {"id": "isear", "licence": "UNIGE CISA research material: free for qualified researchers for non-commercial research projects (search snippet; not ISEAR-specific wording)", "class": "research-only", "access": "manual", "download_urls": [], "verdict": "corrected"},
+  {"id": "dailydialog", "licence": "CC BY-NC-SA 4.0", "class": "research-only", "access": "auto", "download_urls": ["https://huggingface.co/datasets/roskoN/dailydialog/resolve/main/train.zip", "https://huggingface.co/datasets/roskoN/dailydialog/resolve/main/validation.zip", "https://huggingface.co/datasets/roskoN/dailydialog/resolve/main/test.zip"], "verdict": "verified"},
+  {"id": "semeval2018_task1", "licence": "NRC terms: do not redistribute; free for research, commercial use by request (nominal fee may apply)", "class": "research-only", "access": "auto", "download_urls": ["https://saifmohammad.com/WebDocs/AIT-2018/AIT2018-DATA/SemEval2018-Task1-all-data.zip"], "verdict": "verified"},
+  {"id": "cedr", "licence": "Apache-2.0 (labels/repo); texts from LiveJournal, Lenta.ru, Twitter", "class": "unclear", "access": "auto", "download_urls": ["https://huggingface.co/datasets/sagteam/cedr_v1"], "verdict": "verified"},
+  {"id": "ru_go_emotions", "licence": "MIT tag (self-declared); Google-Translate derivative of GoEmotions (Reddit)", "class": "unclear", "access": "auto", "download_urls": ["https://huggingface.co/datasets/seara/ru_go_emotions"], "verdict": "verified"},
+  {"id": "rusentilex", "licence": "CC BY-NC-SA 4.0 (per author, via rulexicon R package; official page unreachable)", "class": "research-only", "access": "manual", "download_urls": ["https://www.labinform.ru/pub/rusentilex/rusentilex_2016.txt", "https://www.labinform.ru/pub/rusentilex/rusentilex_2017.txt"], "verdict": "corrected"},
+  {"id": "senti_lex_hy_ru", "licence": "GPL-3.0 (no incorporation into distributed proprietary software; contact creators for commercial)", "class": "needs-licence", "access": "auto", "download_urls": ["https://huggingface.co/datasets/senti-lex/senti_lex/resolve/main/data.zip"], "verdict": "verified"},
+  {"id": "armeniannlp", "licence": "CC BY-NC 4.0 (README + LICENSE file)", "class": "research-only", "access": "auto", "download_urls": ["https://github.com/nigkal/ArmenianNLP"], "verdict": "verified"},
+  {"id": "armenian_news_sentiment", "licence": "apache-2.0 tag; train/dev are Google-Translate of SST, MELD, SLSD; test 956 hand-labelled news", "class": "unclear", "access": "manual", "download_urls": ["https://huggingface.co/datasets/Elen22/Armenian-news-sentiment-dataset/resolve/main/hy_sentiment_.zip"], "verdict": "verified"},
+  {"id": "openslr_slr153", "licence": "CC BY-SA 4.0 (search snippet)", "class": "commercial-OK", "access": "manual", "download_urls": ["https://openslr.org/153/"], "verdict": "verified"},
+  {"id": "emosurv", "licence": "IEEE DataPort grant: non-commercial, educational, research only; no redistribution; listing License field blank", "class": "research-only", "access": "manual", "download_urls": [], "verdict": "verified"},
+  {"id": "kolakowska_landowska_2021_dataset", "licence": "none (no LICENSE file; default copyright)", "class": "unclear", "access": "auto", "download_urls": ["https://raw.githubusercontent.com/agatakol/Keystroke-dynamics-patterns-while-writing-positive-and-negative-opinions/main/README.md"], "verdict": "corrected"},
+  {"id": "Metric-AI/armenian-text-embeddings-2-base", "licence": "MIT (weights); trained on Metric-AI/reddit_10K_hye CC-BY-NC-4.0, Gemma-2-27B translations of Reddit", "class": "unclear", "access": "auto", "download_urls": ["https://huggingface.co/Metric-AI/armenian-text-embeddings-2-base"], "verdict": "corrected"},
+  {"id": "Snowflake/snowflake-arctic-embed-m-v2.0", "licence": "Apache-2.0 (requires trust_remote_code: custom GTE modeling code)", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/Snowflake/snowflake-arctic-embed-m-v2.0"], "verdict": "corrected"},
+  {"id": "Qwen/Qwen3-Embedding-0.6B", "licence": "Apache-2.0", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/Qwen/Qwen3-Embedding-0.6B"], "verdict": "corrected"},
+  {"id": "BAAI/bge-m3", "licence": "MIT", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/BAAI/bge-m3"], "verdict": "verified"},
+  {"id": "sentence-transformers/all-MiniLM-L6-v2", "licence": "Apache-2.0 (English only; Armenian tokenises to [UNK])", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"], "verdict": "verified"},
+  {"id": "intfloat/multilingual-e5-small", "licence": "MIT", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/intfloat/multilingual-e5-small"], "verdict": "verified"},
+  {"id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "licence": "Apache-2.0", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"], "verdict": "verified"},
+  {"id": "sentence-transformers/LaBSE", "licence": "Apache-2.0", "class": "commercial-OK", "access": "auto", "download_urls": ["https://huggingface.co/sentence-transformers/LaBSE"], "verdict": "verified"},
+  {"id": "jinaai/jina-embeddings-v3", "licence": "CC-BY-NC-4.0", "class": "research-only", "access": "auto", "download_urls": ["https://huggingface.co/jinaai/jina-embeddings-v3"], "verdict": "verified"},
+  {"id": "google/embeddinggemma-300m", "licence": "Gemma terms (gated, manual)", "class": "needs-licence", "access": "manual", "download_urls": ["https://huggingface.co/google/embeddinggemma-300m"], "verdict": "verified"},
+  {"id": "wampfler2020_touch_vad (was 'Leow 2019' in R2)", "licence": "n/a (paper)", "class": "n/a", "access": "n/a", "download_urls": ["https://research-collection.ethz.ch/bitstream/handle/20.500.11850/442912/AffectiveStatePredictionBasedonSemi-SupervisedLearningfromSmartphoneTouchData.pdf"], "verdict": "wrong"}
+]
+```
 
 ## Still needs a human
-(pending)
 
-## Progress log (raw, superseded by tables above when final)
-- Network: arxiv, ACM, PMC, MDPI, PLoS, medRxiv, Zenodo, IEEE DataPort, CSEA, labinform, aclanthology, codalab, yanran.li,
-  web.archive.org all blocked (curl 000 / WebFetch ENOTFOUND). Reachable: huggingface.co, raw.githubusercontent.com,
-  saifmohammad.com, unige.ch (403 bot wall). WebSearch works (snippet grade).
-- Embedders: HF API licence/params/hy/ru tags/ONNX/max_seq checked; tokenizer spike shows 0 UNK for hy/ru in e5-small,
-  paraphrase-multilingual, LaBSE, arctic-m-v2.0; all-MiniLM-L6-v2 produces [UNK] for Armenian.
-- Metric-AI/reddit_10K_hye (training data of the Armenian embedder) is CC-BY-NC-4.0 and Gemma-2-27B translated.
-- ANEW: quanteda doc reproduces CSEA statement "will not provide the ANEW materials to profit making companies" -> research-only.
-- RuSentiLex: rulexicon R doc: CC BY-NC-SA 4.0 per author -> research-only (secondary).
-- SemEval-2018 zip: HEAD 200 5,975,590 B; README "Do not redistribute"; E-c En 6,838/886/3,259 verified.
-- DailyDialog roskoN: 11,118/1,000/1,000 verified; train labels 82.8% "no emotion".
-- Elen22 Armenian card readable (not gated): 956 test (295/476/185) verified; train/dev Google-Translated SST, MELD, SLSD.
-- Kolakowska dataset repo: 49 participants x 5 vectors, 51 features, PAD 9-point, pleasure/arousal REVERSED (low = positive/aroused); no LICENSE file.
+1. **Allow the paper hosts**, or fetch the PDFs yourself, so that Part C can be checked against the primary text:
+   `dl.acm.org` (Epp 2011: N and accuracy definitions), `www.mdpi.com` or `pmc.ncbi.nlm.nih.gov` (Kołakowska 2021: F1 0.76;
+   Lee 2014: effect sizes), `www.medrxiv.org` (Naegelin 2025), and `ieee-dataport.org` (EmoSurv licence text, verbatim).
+   Today every Part C number is snippet-grade.
+2. **EmoSurv**: an IEEE DataPort login (free), then copy the grant-of-licence text verbatim into `DATA_SOURCES.md`.
+3. **ANEW**: if you ever want it commercially, ask CSEA directly. The Statement of Use bars giving it to for-profit
+   organisations, so expect a "no" and keep skipping it.
+4. **ISEAR**: open the CISA page in a browser (it blocks scripts) and read the ISEAR-specific terms. Until then, treat it
+   as research-only.
+5. **RuSentiLex**: confirm CC BY-NC-SA 4.0 on labinform.ru, or with N. Loukachevitch, before any use beyond research.
+6. **Kołakowska dataset**: no licence. Ask the authors (A. Kołakowska, Gdańsk University of Technology) for permission
+   if we want to use it beyond private validation.
+7. **Metric-AI Armenian embedder**: ask Metric-AI whether the CC-BY-NC training data and the Gemma-generated translations
+   restrict commercial use of the weights. Until then, do not ship it; use multilingual-e5-small.
+8. **Machine-translated corpora** (ru_go_emotions, AiLab, Elen22): legal view on free Google-Translate outputs used through
+   deep-translator. This adds to the Reddit provenance question already raised in V1.
+9. **Snowflake arctic-embed-m-v2.0**: if chosen, audit the remote GTE code (the same rule as for UltraBERT).
