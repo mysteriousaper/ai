@@ -53,6 +53,10 @@ DEFAULT_TIMEOUT = 60.0
 # Wall-clock cap for one file: --timeout bounds each read, so a server that trickles bytes
 # just inside it would otherwise stall the run forever.
 DEFAULT_DEADLINE = 3600.0
+# Zip-bomb guards, checked against the archive's own member table before anything is written.
+# The largest real archive (SemEval-2018 Task 1) unpacks to well under 1 GiB.
+MAX_EXTRACT_BYTES = 8 << 30
+MAX_EXTRACT_MEMBERS = 100_000
 # saifmohammad.com answers 406 to any User-Agent containing "urllib" (checked 2026-11-18).
 USER_AGENT = "emotion-engine-fetch-data/0.1"
 
@@ -475,11 +479,25 @@ def _check_member(name: str, archive: Path) -> None:
         raise UnsafeArchiveError(f"{archive.name}: unsafe member {name!r}: {exc}") from None
 
 
+def _check_totals(archive: Path, count: int, total: int) -> None:
+    if count > MAX_EXTRACT_MEMBERS:
+        raise UnsafeArchiveError(
+            f"{archive.name}: {count} members exceeds the cap of {MAX_EXTRACT_MEMBERS} members"
+        )
+    if total > MAX_EXTRACT_BYTES:
+        raise UnsafeArchiveError(
+            f"{archive.name}: would extract {total} bytes, over the cap of "
+            f"{MAX_EXTRACT_BYTES} bytes"
+        )
+
+
 def safe_extract(archive: Path, target: Path) -> list[str]:
     """Extract a .zip / .tar.gz / .tgz into ``target`` after validating every member.
 
     Rejects absolute paths, ``..``, links that escape (or any zip symlink) and device files
     *before* writing anything; tar extraction additionally runs with ``filter="data"``.
+    Archives over ``MAX_EXTRACT_MEMBERS`` members or ``MAX_EXTRACT_BYTES`` uncompressed bytes
+    are refused (zipfile never yields more than a member's declared ``file_size``).
     Returns the member names extracted.
     """
     target.mkdir(parents=True, exist_ok=True)
@@ -495,6 +513,7 @@ def _extract_zip(archive: Path, target: Path) -> list[str]:
     try:
         with zipfile.ZipFile(archive) as zf:
             infos = zf.infolist()
+            _check_totals(archive, len(infos), sum(info.file_size for info in infos))
             for info in infos:
                 _check_member(info.filename, archive)
                 if stat.S_ISLNK(info.external_attr >> 16):
@@ -509,8 +528,14 @@ def _extract_zip(archive: Path, target: Path) -> list[str]:
 def _extract_tar(archive: Path, target: Path) -> list[str]:
     try:
         with tarfile.open(archive, "r:gz") as tf:
+            for count, _ in enumerate(tf, start=1):  # stream: stop early on a header bomb
+                if count > MAX_EXTRACT_MEMBERS:
+                    _check_totals(archive, count, 0)
             members = tf.getmembers()
+            _check_totals(archive, len(members), sum(m.size for m in members if m.isreg()))
             for member in members:
+                if member.issparse():
+                    raise UnsafeArchiveError(f"{archive.name}: sparse member {member.name!r}")
                 _check_member(member.name, archive)
                 resolve_inside(target, member.name.rstrip("/"))
                 if member.isdev():

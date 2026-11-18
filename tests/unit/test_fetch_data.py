@@ -757,6 +757,35 @@ def test_redirect_to_non_https_is_refused(tmp_path: Path, server, target: str) -
     assert not list(tmp_path.iterdir())
 
 
+@pytest.mark.parametrize("kind", ["zip", "tar"])
+def test_archive_over_size_cap_is_rejected_before_writing(
+    tmp_path: Path, monkeypatch, kind: str
+) -> None:
+    monkeypatch.setattr(fd, "MAX_EXTRACT_BYTES", 1000)
+    entries = {"ok.txt": b"ok", "big.bin": b"\0" * 2000}
+    archive = tmp_path / ("a.zip" if kind == "zip" else "a.tar.gz")
+    archive.write_bytes(make_zip(entries) if kind == "zip" else make_tar(entries))
+    with pytest.raises(fd.UnsafeArchiveError, match="bytes"):
+        fd.safe_extract(archive, tmp_path / "out")
+    assert not (tmp_path / "out" / "ok.txt").exists()
+
+
+@pytest.mark.parametrize("kind", ["zip", "tar"])
+def test_archive_over_member_cap_is_rejected(tmp_path: Path, monkeypatch, kind: str) -> None:
+    monkeypatch.setattr(fd, "MAX_EXTRACT_MEMBERS", 3)
+    entries = {f"f{i}.txt": b"x" for i in range(4)}
+    archive = tmp_path / ("a.zip" if kind == "zip" else "a.tar.gz")
+    archive.write_bytes(make_zip(entries) if kind == "zip" else make_tar(entries))
+    with pytest.raises(fd.UnsafeArchiveError, match="members"):
+        fd.safe_extract(archive, tmp_path / "out")
+    assert not (tmp_path / "out").exists() or not any((tmp_path / "out").iterdir())
+
+
+def test_extraction_caps_are_sane() -> None:
+    assert 1 << 30 <= fd.MAX_EXTRACT_BYTES <= 1 << 36
+    assert 1_000 <= fd.MAX_EXTRACT_MEMBERS <= 1_000_000
+
+
 # --------------------------------------------------------------------------- network
 
 
