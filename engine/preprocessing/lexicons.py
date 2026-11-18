@@ -100,10 +100,10 @@ CONTENT_POS: frozenset[str] = frozenset({"ADJ", "ADV", "VERB", "NOUN", "PROPN", 
 # --- Emoticons -----------------------------------------------------------------------------
 # Order matters only for documentation; matching is longest-first.
 EMOTICONS: dict[str, str] = {
-    ":)": "smile", ":-)": "smile", "=)": "smile", ":]": "smile", "(:": "smile",
+    ":)": "smile", ":-)": "smile", "=)": "smile", ":]": "smile",
     ":))": "smile", ":)))": "smile", "^_^": "smile", "^^": "smile",
     ":D": "laugh", ":-D": "laugh", "=D": "laugh", "xD": "laugh", "XD": "laugh",
-    ":(": "frown", ":-(": "frown", "=(": "frown", ":[": "frown", "):": "frown",
+    ":(": "frown", ":-(": "frown", "=(": "frown", ":[": "frown",
     ":((": "frown", ":(((": "frown",
     ";)": "wink", ";-)": "wink", ";D": "wink",
     ":P": "tongue", ":-P": "tongue", ":p": "tongue", ":-p": "tongue", "xP": "tongue",
@@ -129,7 +129,7 @@ DOUBLE_LETTER_WORDS: frozenset[str] = frozenset(
         "yell", "smell", "off", "stuff", "miss", "kiss", "less", "mess", "boss", "class", "pass",
         "guess", "shall", "add", "odd", "egg", "aww", "oops", "woo", "yay",
         "week", "seen", "teen", "queen", "green", "speed", "bleed", "seem", "beer", "cheers",
-        "cheer", "soo", "loose", "lose", "goodbye", "noob", "yummy", "happy", "silly", "really",
+        "cheer", "loose", "lose", "goodbye", "noob", "yummy", "happy", "silly", "really",
         "sorry", "pretty", "funny", "little", "better", "bitter", "sadder", "madder", "cuddle",
         "hello", "zoom", "room", "doom", "gloom", "baby", "kitty", "puppy", "woohoo",
     }
