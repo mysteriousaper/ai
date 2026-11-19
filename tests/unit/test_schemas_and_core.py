@@ -129,8 +129,9 @@ def test_unsupported_language_skips_english_only_engine():
 
 
 def test_language_agnostic_engine_reaches_analyze():
-    with pytest.raises(NotImplementedError):
-        AppraisalEngine()(EngineInput(text="Ես տխուր եմ", context=MessageContext(language="hy")))
+    # language-agnostic engines must not be skipped for Armenian (was a NotImplementedError stub in Phase 2)
+    out = AppraisalEngine()(EngineInput(text="Ես տխուր եմ", context=MessageContext(language="hy")))
+    assert not str(out.features.get("skipped", "")).startswith("unsupported_language")
 
 
 # ---------------------------------------------------------------- safety
