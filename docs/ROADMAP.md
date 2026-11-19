@@ -36,6 +36,10 @@ Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 - [x] ruff + full tests green, commit, push
 - [x] 5-line summary per engine; update CLAUDE.md "State"
 
+### Later (from the 2025 findings)
+- [ ] Lexicon engine: down-weight past-tense and other-experiencer clauses using `engine/preprocessing/clauses.py`
+- [x] Schema v0.2, `clauses.py`, `eval/challenge_set.jsonl` + `eval/challenge.py` (added after Session 1)
+
 ## Session 2: engine B (transformer)
 - [ ] Wrap `SamLowe/roberta-base-go_emotions` (v0); per-label thresholds tuned on validation
 - [ ] GoEmotions test: macro/micro F1, ROC-AUC, CIs; latency per message on CPU
@@ -46,6 +50,11 @@ Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 - [ ] `scripts/build_cluster_map.py`: MiniLM embeddings (GoEmotions train) → UMAP → HDBSCAN → agglomerative over centroids
 - [ ] Label each node (dominant emotions + top words); purity / NMI vs labels; seed stability
 - [ ] Engine: nearest leaf + path + k nearest neighbourhoods → `eval/reports/semantic_cluster.md`
+- [ ] Fit UMAP/HDBSCAN once offline and save artifacts; assign new messages by nearest prototype (never refit per request)
+- [ ] K-means baseline for comparison
+- [ ] c-TF-IDF + representative phrases for node names
+- [ ] Soft membership; stability across seeds
+- [ ] Standardize/weight before any feature concatenation (a 384-D embedding must not drown VAD)
 
 ## Session 4: engine E (appraisal, local)
 - [ ] Zero-shot NLI over the 16 event types + 7 needs + agent (multilingual MiniLM)
@@ -53,12 +62,14 @@ Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 - [ ] Evidence spans (sentence with the highest entailment); merge safety with `engine/safety.py`
 - [ ] Claude API path: stub, off by default
 - [ ] Evaluate on the ED test split → `eval/reports/appraisal.md`
+- [ ] Use `clauses.py`: desired state from desire clauses, experiencer attribution, temporal weighting; explicit user correction overrides inference
 
 ## Session 5: engine D (keystrokes), needs EmoSurv CSVs from you
 - [ ] Feature extractor (speed, dwell, flight, pauses > 2 s, backspace ratio, bursts, time to first key)
 - [ ] Personal baseline z-scores (Welford); validate on EmoSurv → `eval/reports/keystroke.md`
 
 ## Sessions 6–7: Phase 4, integration
+- [ ] Run `eval/challenge.py` on fused output; abstention quality metric
 - [ ] Weighted fusion → stacking LR + temperature scaling; ECE + reliability plot
 - [ ] Ablation table (each engine alone, plus combinations) with CIs
 - [ ] Temporal: baseline, EMA, Kalman (HMM only if it wins); synthetic sad → neutral → happy test

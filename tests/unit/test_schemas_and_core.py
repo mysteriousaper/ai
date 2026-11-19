@@ -14,7 +14,10 @@ from engine.mappings.labels import EKMAN, PLUTCHIK, NeedType
 from engine.schemas import (
     SCHEMA_VERSION,
     VAD,
+    Attribution,
     Coarse,
+    DesiredGoal,
+    DesiredState,
     EmotionalStateObject,
     EmotionScore,
     EngineInput,
@@ -24,6 +27,7 @@ from engine.schemas import (
     NeedScore,
     SafetyFlag,
     SafetyLevel,
+    TemporalFocus,
 )
 
 
@@ -69,6 +73,45 @@ def test_invalid_values_rejected(bad):
 def test_exported_json_schema_is_current():
     path = Path(f"docs/schema/emotional_state_object.v{SCHEMA_VERSION}.json")
     assert json.loads(path.read_text()) == EmotionalStateObject.model_json_schema(), "run scripts/export_schema.py"
+
+
+def test_schema_version_is_02():
+    assert SCHEMA_VERSION == "0.2"
+
+
+def test_v02_defaults_are_backwards_compatible():
+    s = make_state()
+    assert s.desired_state is None and s.attributions == []
+    assert s.temporal_focus is TemporalFocus.UNKNOWN and s.sarcasm_suspected is False
+    o = EngineOutput(engine="x", version="0")
+    assert o.attributions == [] and o.desired_state is None and o.sarcasm_suspected is False
+
+
+def test_desired_state_and_attribution_roundtrip():
+    s = make_state(
+        desired_state=DesiredState(goals=["calm", "solitude"], vad=VAD(valence=0.4, arousal=-0.5, dominance=0.1),
+                                   evidence_spans=["I want some quiet"]),
+        attributions=[Attribution(experiencer="other", who="my brother", label="nervousness", p=0.7,
+                                  time="present", span="My brother is nervous")],
+        temporal_focus="mixed", sarcasm_suspected=True,
+    )
+    again = EmotionalStateObject.model_validate_json(s.model_dump_json())
+    assert again == s
+    assert again.desired_state.goals == [DesiredGoal.CALM, DesiredGoal.SOLITUDE]
+    assert again.attributions[0].who == "my brother"
+
+
+@pytest.mark.parametrize("bad", [
+    lambda: DesiredState(goals=["world_peace"]),
+    lambda: Attribution(label="not_an_emotion"),
+    lambda: Attribution(label="joy", experiencer="nobody"),
+    lambda: Attribution(label="joy", time="yesterday"),
+    lambda: Attribution(label="joy", p=1.5),
+    lambda: EngineOutput(engine="x", version="0", temporal_focus="past"),
+])
+def test_v02_invalid_values_rejected(bad):
+    with pytest.raises(ValidationError):
+        bad()
 
 
 # ---------------------------------------------------------------- engine interface

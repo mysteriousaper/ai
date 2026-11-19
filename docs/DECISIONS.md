@@ -43,3 +43,10 @@
 ## ADR-010 — `uncertain` field added to the ESO
 - **Decision:** Explicit boolean, separate from `mixed_or_ambiguous`.
 - **Why:** "Signals disagree" (mixed) and "signals are too weak" (uncertain) call for different product behaviour.
+
+## ADR-011 - Schema v0.2: current vs desired state, experiencer, temporality, sarcasm flag
+- **Decision:** `SCHEMA_VERSION = "0.2"`. New optional fields (all with backwards-compatible defaults): `desired_state` (`DesiredGoal` enum + optional VAD + evidence spans), `attributions` (experiencer self/other/unknown, `who`, canonical label, p, `TemporalFocus`, span), `temporal_focus`, `sarcasm_suspected` on the ESO; the same `attributions`, `desired_state`, `sarcasm_suspected` on `EngineOutput`. v0.1 JSON schemas removed from `docs/schema/`.
+- **Source:** findings of the 2025 Wiymood handoff (`docs/HISTORY_WIYMOOD_2025.md`): the current feeling is not the desired state; feelings of other people and past feelings must not be read as the speaker's present state; negation, contrast and sarcasm break pure lexical readings.
+- **Why:** these distinctions decide what a product should do ("anxious but wants adventure" is not "anxious, wants calm"). Rule-based `engine/preprocessing/clauses.py` supplies the inputs; `eval/challenge_set.jsonl` measures them.
+- **Sarcasm:** a cue score only sets a flag that lowers confidence; it never flips a label (lexical cues cannot separate sarcasm from a real complaint).
+- **Alternatives:** separate desired-state schema per product (rejected: every adapter needs it); free-text goals (rejected: not testable).

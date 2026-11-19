@@ -85,7 +85,13 @@ classDiagram
 
 ## 6. Emotional State Object
 
-See `docs/schema/emotional_state_object.v0.1.json`. Additions beyond the brief's example: `uncertain` (honesty rule), `safety_flag`, `situation.event_type_p`, `situation.certainty`, `situation.norm_violation`, `pattern.n_messages`, `pattern.recurring_triggers`.
+See `docs/schema/emotional_state_object.v0.2.json`. Additions beyond the brief's example: `uncertain` (honesty rule), `safety_flag`, `situation.event_type_p`, `situation.certainty`, `situation.norm_violation`, `pattern.n_messages`, `pattern.recurring_triggers`.
+
+### v0.2 additions (ADR-011)
+- `desired_state` (goals from a fixed enum, optional VAD, evidence spans) is kept apart from the current state (`emotions`, `vad`).
+- `attributions`: per-clause emotion with experiencer (self / other / unknown), `who` ("my brother") and `TemporalFocus`; `temporal_focus` summarises them.
+- `sarcasm_suspected`: heuristic flag from `clauses.sarcasm_cues`; lowers confidence only.
+- Producer: `engine/preprocessing/clauses.py` (spaCy rules, English only). Measured by `eval/challenge.py` on `eval/challenge_set.jsonl`.
 
 ## 7. Domain adapters
 

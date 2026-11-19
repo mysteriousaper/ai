@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from engine.mappings.labels import CANONICAL, EKMAN, PLUTCHIK, Agent, EventType, NeedType
 
-SCHEMA_VERSION = "0.1"
+SCHEMA_VERSION = "0.2"
 
 Prob = Annotated[float, Field(ge=0.0, le=1.0)]
 Signed = Annotated[float, Field(ge=-1.0, le=1.0)]
@@ -123,6 +123,66 @@ class SafetyFlag(_Strict):
     reasons: list[str] = Field(default_factory=list)
 
 
+# ------------------------------------------------------------------ v0.2: time, experiencer, desire
+
+
+class TemporalFocus(StrEnum):
+    PAST = "past"
+    PRESENT = "present"
+    FUTURE = "future"
+    MIXED = "mixed"
+    UNKNOWN = "unknown"
+
+
+class Experiencer(StrEnum):
+    SELF = "self"
+    OTHER = "other"
+    UNKNOWN = "unknown"
+
+
+class DesiredGoal(StrEnum):
+    """What the person wants to feel or get, as opposed to what they feel now (2025 finding)."""
+
+    CALM = "calm"
+    REST = "rest"
+    RELIEF = "relief"
+    JOY = "joy"
+    EXCITEMENT = "excitement"
+    NOVELTY = "novelty"
+    CONNECTION = "connection"
+    SOLITUDE = "solitude"
+    CONTROL = "control"
+    SAFETY = "safety"
+    UNDERSTANDING = "understanding"
+    CHANGE = "change"
+
+
+class Attribution(_Strict):
+    """One emotion attributed to a specific experiencer at a specific time."""
+
+    experiencer: Experiencer = Experiencer.UNKNOWN
+    who: str | None = Field(default=None, description='subject phrase, e.g. "my brother"')
+    label: str
+    p: Prob = 0.0
+    time: TemporalFocus = TemporalFocus.UNKNOWN
+    span: str = ""
+
+    @field_validator("label")
+    @classmethod
+    def _canonical(cls, v: str) -> str:
+        if v not in CANONICAL:
+            raise ValueError(f"unknown emotion label {v!r}")
+        return v
+
+
+class DesiredState(_Strict):
+    """Desired state, kept separate from the current state (current feeling != desired state)."""
+
+    goals: list[DesiredGoal] = Field(default_factory=list)
+    vad: VAD | None = None
+    evidence_spans: list[str] = Field(default_factory=list)
+
+
 # ------------------------------------------------------------------ engine output
 
 
@@ -139,6 +199,9 @@ class EngineOutput(_Strict):
     situation: Situation | None = None
     needs: list[NeedScore] = Field(default_factory=list)
     safety: SafetyFlag | None = None
+    attributions: list[Attribution] = Field(default_factory=list)
+    desired_state: DesiredState | None = None
+    sarcasm_suspected: bool = False
 
     @field_validator("emotions")
     @classmethod
@@ -207,6 +270,10 @@ class EmotionalStateObject(_Strict):
     safety_flag: SafetyFlag = Field(default_factory=SafetyFlag)
     explanations: list[Explanation] = Field(default_factory=list)
     engine_versions: dict[str, str] = Field(default_factory=dict)
+    desired_state: DesiredState | None = None
+    attributions: list[Attribution] = Field(default_factory=list)
+    temporal_focus: TemporalFocus = TemporalFocus.UNKNOWN
+    sarcasm_suspected: bool = Field(default=False, description="flag only; lowers confidence, never flips labels")
 
     @field_validator("emotions")
     @classmethod

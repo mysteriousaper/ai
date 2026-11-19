@@ -10,54 +10,104 @@
       "title": "Agent",
       "type": "string"
     },
-    "Coarse": {
+    "Attribution": {
       "additionalProperties": false,
+      "description": "One emotion attributed to a specific experiencer at a specific time.",
       "properties": {
-        "plutchik": {
-          "additionalProperties": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "type": "number"
-          },
-          "title": "Plutchik",
-          "type": "object"
+        "experiencer": {
+          "$ref": "#/$defs/Experiencer",
+          "default": "unknown"
         },
-        "ekman": {
-          "additionalProperties": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "type": "number"
-          },
-          "title": "Ekman",
-          "type": "object"
-        }
-      },
-      "required": [
-        "plutchik",
-        "ekman"
-      ],
-      "title": "Coarse",
-      "type": "object"
-    },
-    "EmotionScore": {
-      "additionalProperties": false,
-      "properties": {
+        "who": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "subject phrase, e.g. \"my brother\"",
+          "title": "Who"
+        },
         "label": {
           "title": "Label",
           "type": "string"
         },
         "p": {
+          "default": 0.0,
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "P",
           "type": "number"
+        },
+        "time": {
+          "$ref": "#/$defs/TemporalFocus",
+          "default": "unknown"
+        },
+        "span": {
+          "default": "",
+          "title": "Span",
+          "type": "string"
         }
       },
       "required": [
-        "label",
-        "p"
+        "label"
       ],
-      "title": "EmotionScore",
+      "title": "Attribution",
+      "type": "object"
+    },
+    "DesiredGoal": {
+      "description": "What the person wants to feel or get, as opposed to what they feel now (2025 finding).",
+      "enum": [
+        "calm",
+        "rest",
+        "relief",
+        "joy",
+        "excitement",
+        "novelty",
+        "connection",
+        "solitude",
+        "control",
+        "safety",
+        "understanding",
+        "change"
+      ],
+      "title": "DesiredGoal",
+      "type": "string"
+    },
+    "DesiredState": {
+      "additionalProperties": false,
+      "description": "Desired state, kept separate from the current state (current feeling != desired state).",
+      "properties": {
+        "goals": {
+          "items": {
+            "$ref": "#/$defs/DesiredGoal"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "vad": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VAD"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        }
+      },
+      "title": "DesiredState",
       "type": "object"
     },
     "EventType": {
@@ -83,26 +133,14 @@
       "title": "EventType",
       "type": "string"
     },
-    "Explanation": {
-      "additionalProperties": false,
-      "properties": {
-        "engine": {
-          "title": "Engine",
-          "type": "string"
-        },
-        "top_features": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Top Features",
-          "type": "array"
-        }
-      },
-      "required": [
-        "engine"
+    "Experiencer": {
+      "enum": [
+        "self",
+        "other",
+        "unknown"
       ],
-      "title": "Explanation",
-      "type": "object"
+      "title": "Experiencer",
+      "type": "string"
     },
     "NeedScore": {
       "additionalProperties": false,
@@ -136,42 +174,6 @@
       ],
       "title": "NeedType",
       "type": "string"
-    },
-    "Pattern": {
-      "additionalProperties": false,
-      "properties": {
-        "baseline_deviation": {
-          "default": 0.0,
-          "description": "valence z-score vs personal baseline",
-          "title": "Baseline Deviation",
-          "type": "number"
-        },
-        "trend": {
-          "$ref": "#/$defs/Trend",
-          "default": "unknown"
-        },
-        "volatility": {
-          "default": 0.0,
-          "minimum": 0,
-          "title": "Volatility",
-          "type": "number"
-        },
-        "n_messages": {
-          "default": 0,
-          "minimum": 0,
-          "title": "N Messages",
-          "type": "integer"
-        },
-        "recurring_triggers": {
-          "items": {
-            "$ref": "#/$defs/EventType"
-          },
-          "title": "Recurring Triggers",
-          "type": "array"
-        }
-      },
-      "title": "Pattern",
-      "type": "object"
     },
     "SafetyFlag": {
       "additionalProperties": false,
@@ -257,14 +259,15 @@
       "title": "Situation",
       "type": "object"
     },
-    "Trend": {
+    "TemporalFocus": {
       "enum": [
-        "improving",
-        "stable",
-        "worsening",
+        "past",
+        "present",
+        "future",
+        "mixed",
         "unknown"
       ],
-      "title": "Trend",
+      "title": "TemporalFocus",
       "type": "string"
     },
     "VAD": {
@@ -322,41 +325,56 @@
     }
   },
   "additionalProperties": false,
-  "description": "Universal, domain-neutral output of the Engine (brief \u00a74.8).",
+  "description": "What every signal engine (A\u2013F) returns. Same shape for all engines.",
   "properties": {
-    "schema_version": {
-      "default": "0.1",
-      "title": "Schema Version",
+    "engine": {
+      "title": "Engine",
       "type": "string"
     },
-    "timestamp": {
-      "format": "date-time",
-      "title": "Timestamp",
-      "type": "string"
-    },
-    "language": {
-      "default": "en",
-      "title": "Language",
+    "version": {
+      "title": "Version",
       "type": "string"
     },
     "vad": {
-      "$ref": "#/$defs/VAD"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VAD"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "emotions": {
-      "description": "sorted by p, descending",
-      "items": {
-        "$ref": "#/$defs/EmotionScore"
+      "additionalProperties": {
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "type": "number"
       },
+      "description": "canonical label -> probability",
       "title": "Emotions",
-      "type": "array"
+      "type": "object"
     },
-    "coarse": {
-      "$ref": "#/$defs/Coarse"
+    "features": {
+      "additionalProperties": true,
+      "description": "raw values for explainability",
+      "title": "Features",
+      "type": "object"
     },
-    "intensity": {
+    "confidence": {
+      "default": 0.0,
       "maximum": 1.0,
       "minimum": 0.0,
-      "title": "Intensity",
+      "title": "Confidence",
+      "type": "number"
+    },
+    "coverage": {
+      "default": 0.0,
+      "description": "share of the input the engine could actually read",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Coverage",
       "type": "number"
     },
     "situation": {
@@ -370,58 +388,52 @@
       ],
       "default": null
     },
-    "need": {
+    "needs": {
       "items": {
         "$ref": "#/$defs/NeedScore"
       },
-      "title": "Need",
+      "title": "Needs",
       "type": "array"
     },
-    "pattern": {
-      "$ref": "#/$defs/Pattern"
+    "safety": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SafetyFlag"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
-    "overall_confidence": {
-      "maximum": 1.0,
-      "minimum": 0.0,
-      "title": "Overall Confidence",
-      "type": "number"
-    },
-    "mixed_or_ambiguous": {
-      "default": false,
-      "title": "Mixed Or Ambiguous",
-      "type": "boolean"
-    },
-    "uncertain": {
-      "default": false,
-      "description": "true when evidence is too weak to name an emotion",
-      "title": "Uncertain",
-      "type": "boolean"
-    },
-    "safety_flag": {
-      "$ref": "#/$defs/SafetyFlag"
-    },
-    "explanations": {
+    "attributions": {
       "items": {
-        "$ref": "#/$defs/Explanation"
+        "$ref": "#/$defs/Attribution"
       },
-      "title": "Explanations",
+      "title": "Attributions",
       "type": "array"
     },
-    "engine_versions": {
-      "additionalProperties": {
-        "type": "string"
-      },
-      "title": "Engine Versions",
-      "type": "object"
+    "desired_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DesiredState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sarcasm_suspected": {
+      "default": false,
+      "title": "Sarcasm Suspected",
+      "type": "boolean"
     }
   },
   "required": [
-    "vad",
-    "emotions",
-    "coarse",
-    "intensity",
-    "overall_confidence"
+    "engine",
+    "version"
   ],
-  "title": "EmotionalStateObject",
+  "title": "EngineOutput",
   "type": "object"
 }
