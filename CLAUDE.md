@@ -1,6 +1,6 @@
 # Emotion Engine: working rules
 
-Brief: `PROJECT_BRIEF.md`. Product/demo name: **Wiymood AI** (use it in the UI, API title and reports). State: Phases 0–2 done + preprocessing (`engine/preprocessing/pipeline.py`, tested). Next: see `docs/ROADMAP.md` (task list per session).
+Brief: `PROJECT_BRIEF.md`. Product/demo name: **Wiymood AI** (use it in the UI, API title and reports). State: Phases 0–2 done; Session 1 done (eval/metrics.py, eval/datasets.py, engines A lexicon + C stylometric, reports in eval/reports/). In a fresh container run `uv run python scripts/build_lexicons.py && uv run python scripts/train_stylometric.py` once (data/processed is git-ignored). Next: see `docs/ROADMAP.md` (task list per session).
 
 ## Zero money
 - No paid APIs, licences or compute. Engine E (appraisal) is **local only**: a zero-shot NLI model (`MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli`, MIT) plus a DistilRoBERTa classifier on EmpatheticDialogues. Keep the Claude API path as an optional, off-by-default stub.

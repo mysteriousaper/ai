@@ -2,39 +2,39 @@
 
 Tick boxes as work lands. One session = one block below. Rules: see CLAUDE.md.
 
-## Tomorrow: Session 1, Phase 3 engine A (lexicon) + engine C (stylometric)
+## Session 1 (done 2026-11-19), Phase 3 engine A (lexicon) + engine C (stylometric)
 
 Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 
 ### 0. Warm-up (5 min)
-- [ ] Check `data/raw/` and `data/models/` exist (else check `/tmp/fetch_data.log`, re-run `scripts/fetch_data.py`)
-- [ ] `make test` is green (89 tests)
+- [x] Check `data/raw/` and `data/models/` exist (else check `/tmp/fetch_data.log`, re-run `scripts/fetch_data.py`)
+- [x] `make test` is green (89 tests)
 
 ### 1. Shared evaluation helpers: `eval/metrics.py`
-- [ ] macro/micro/per-label F1, ROC-AUC (multi-label)
-- [ ] Pearson r, CCC, MAE for VAD
-- [ ] bootstrap 95% CI (fixed seed, 1,000 resamples)
-- [ ] `eval/datasets.py`: loaders returning canonical labels / [-1, 1] VAD for GoEmotions test, EmoBank test split, SemEval EI-reg (intensity)
-- [ ] property tests: CCC(x, x) = 1, CI contains the point estimate, metrics in range
+- [x] macro/micro/per-label F1, ROC-AUC (multi-label)
+- [x] Pearson r, CCC, MAE for VAD
+- [x] bootstrap 95% CI (fixed seed, 1,000 resamples)
+- [x] `eval/datasets.py`: loaders returning canonical labels / [-1, 1] VAD for GoEmotions test, EmoBank test split, SemEval EI-reg (intensity)
+- [x] property tests: CCC(x, x) = 1, CI contains the point estimate, metrics in range
 
 ### 2. Engine A, lexicon: `engine/engines/lexicon.py`
-- [ ] `scripts/build_lexicons.py`: NRC VAD v2.1 (+ multi-word expressions) and EmoLex → compact `data/processed/lexicon_en.parquet`
-- [ ] Token lookup on lemma, longest multi-word match first
-- [ ] Rules from preprocessing: negation flips valence (×−0.74, VADER constant), dampens arousal; booster scales; after-"but" tokens weighted 1.5×, before 0.5×; CAPS / "!!!" raise arousal
-- [ ] EmoLex 8 emotions → canonical probabilities (via the inverse of the Plutchik table)
-- [ ] `confidence` from matched-token count; `coverage` = matched / content tokens
-- [ ] Behavioural tests: negation flips sign; "sad" < "very sad" < "devastated" (intensity); swapping names or cities leaves the output unchanged; lowercase / no punctuation / 1 typo gives a similar output
-- [ ] Evaluate vs VADER baseline: EmoBank valence r/CCC, GoEmotions coarse (Ekman) F1 → `eval/reports/lexicon.md`
+- [x] `scripts/build_lexicons.py`: NRC VAD v2.1 (+ multi-word expressions) and EmoLex → compact `data/processed/lexicon_en.parquet`
+- [x] Token lookup on lemma, longest multi-word match first
+- [x] Rules from preprocessing: negation flips valence (×−0.74, VADER constant), dampens arousal; booster scales; after-"but" tokens weighted 1.5×, before 0.5×; CAPS / "!!!" raise arousal
+- [x] EmoLex 8 emotions → canonical probabilities (via the inverse of the Plutchik table)
+- [x] `confidence` from matched-token count; `coverage` = matched / content tokens
+- [x] Behavioural tests: negation flips sign; "sad" < "very sad" < "devastated" (intensity); swapping names or cities leaves the output unchanged; lowercase / no punctuation / 1 typo gives a similar output
+- [x] Evaluate vs VADER baseline: EmoBank valence r/CCC, GoEmotions coarse (Ekman) F1 → `eval/reports/lexicon.md`
 
 ### 3. Engine C, stylometric: `engine/engines/stylometric.py`
-- [ ] Features: first-person singular rate, absolutist words (19-word list), past/future tense ratio (spaCy morphology), hedges vs certainty words, question rate, length, type-token ratio, emoji, punctuation intensity, Empath top categories
-- [ ] Output = features + weak VAD (small ridge model trained on EmoBank train split) + low confidence
-- [ ] Tests: every feature on hand-made sentences; empty / emoji-only text does not crash
-- [ ] Evaluate: EmoBank r/CCC vs the mean-prediction baseline → `eval/reports/stylometric.md`
+- [x] Features: first-person singular rate, absolutist words (19-word list), past/future tense ratio (spaCy morphology), hedges vs certainty words, question rate, length, type-token ratio, emoji, punctuation intensity, Empath top categories
+- [x] Output = features + weak VAD (small ridge model trained on EmoBank train split) + low confidence
+- [x] Tests: every feature on hand-made sentences; empty / emoji-only text does not crash
+- [x] Evaluate: EmoBank r/CCC vs the mean-prediction baseline → `eval/reports/stylometric.md`
 
 ### 4. Wrap-up
-- [ ] ruff + full tests green, commit, push
-- [ ] 5-line summary per engine; update CLAUDE.md "State"
+- [x] ruff + full tests green, commit, push
+- [x] 5-line summary per engine; update CLAUDE.md "State"
 
 ## Session 2: engine B (transformer)
 - [ ] Wrap `SamLowe/roberta-base-go_emotions` (v0); per-label thresholds tuned on validation
