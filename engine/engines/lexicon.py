@@ -11,6 +11,7 @@ from typing import ClassVar
 import numpy as np
 
 from engine.engines.base import Engine
+from engine.preprocessing.clauses import Clause, analyze_clauses
 from engine.preprocessing.pipeline import Preprocessed, Token, preprocess
 from engine.schemas import VAD, EngineInput, EngineOutput
 
@@ -57,6 +58,60 @@ def _stopwords() -> frozenset[str]:
         return _FALLBACK_STOP
 
 
+PAST_FACTOR = 0.4  # past-tense clause: describes a former state, not the speaker now
+OTHER_FACTOR = 0.3  # another person's feeling (experiencer "other")
+# Verbs that frame a state rather than express one ("I feel ...", "I want ..."); NRC scores "feel" +0.6.
+LIGHT_VERBS = frozenset({"feel", "want", "wish", "seem", "get"})
+DESIRE_FACTOR = 0.5  # "I want to feel joyful": a wish, not a felt state
+
+
+def _clause_factor(c: Clause) -> float:
+    f = 1.0
+    if c.tense == "past":
+        f *= PAST_FACTOR
+    if c.experiencer == "other":
+        f *= OTHER_FACTOR
+    if c.is_desire:
+        f *= DESIRE_FACTOR
+    return f
+
+
+def _clause_factors(text: str, toks: list[Token]) -> list[float] | None:
+    """Per-token clause factor by sequential text search (tokens and clauses both follow the text order).
+
+    Returns None when clause analysis fails or finds nothing, so all weights stay 1.0.
+    """
+    try:
+        clauses = analyze_clauses(text)
+    except Exception:  # noqa: BLE001 — clause analysis is optional; the lexicon still works without it
+        return None
+    if not clauses:
+        return None
+    low = text.lower()
+    spans: list[tuple[int, int, Clause]] = []
+    cur = 0
+    for c in clauses:
+        key = c.text.lower()
+        i = low.find(key, cur) if key else -1
+        if i >= 0:
+            spans.append((i, i + len(key), c))
+            cur = i + len(key)
+    factors = [1.0] * len(toks)
+    cur = 0
+    for j, t in enumerate(toks):
+        key = t.text.lower()
+        if not key.strip():
+            continue
+        i = low.find(key, cur)
+        if i < 0:
+            continue
+        cur = i + len(key)
+        owner = next((c for s, e, c in spans if s <= i < e), None)
+        if owner is not None:
+            factors[j] = _clause_factor(owner)
+    return factors
+
+
 def _is_punct(t: Token) -> bool:
     return not any(c.isalnum() for c in t.text)
 
@@ -81,7 +136,7 @@ def _weights(tokens: list[Token]) -> list[float]:
 
 class LexiconEngine(Engine):
     name: ClassVar[str] = "lexicon"
-    version: ClassVar[str] = "0.1.0"
+    version: ClassVar[str] = "0.2.0"
 
     def _match(self, toks: list[Token]) -> list[tuple[int, int, tuple]]:
         lex, stop = _load(), _stopwords()
@@ -97,6 +152,8 @@ class LexiconEngine(Engine):
                     if n == 1 and (span[0].text.lower() in stop and span[0].lemma not in lex):
                         continue
                     if n == 1 and span[0].text.lower() in stop:
+                        continue
+                    if span[0].lemma in LIGHT_VERBS:  # also blocks "want to", "feel like"
                         continue
                     if n > 1 and all(t.text.lower() in stop for t in span):
                         continue
@@ -119,6 +176,16 @@ class LexiconEngine(Engine):
         stop = _stopwords()
         weights = _weights(toks)
         matches = self._match(toks)
+        clause_factors = _clause_factors(inp.text, toks) if matches else None
+        clause_applied = clause_factors is not None
+        if clause_factors is not None:
+            # a discounted clause (past / other / wish) never gets the "but" contrast boost
+            # If what follows "but" is only discounted (a wish, the past, someone else), the clause before
+            # "but" is still the speaker's current state: undo its 0.5 contrast discount.
+            post = [f for t, f in zip(toks, clause_factors, strict=True) if t.after_contrast]
+            if post and max(post) < 1.0:
+                weights = [1.0 if (w == 0.5 and not t.after_contrast) else w for w, t in zip(weights, toks, strict=True)]
+            weights = [(min(w, 1.0) if f < 1.0 else w) * f for w, f in zip(weights, clause_factors, strict=True)]
 
         # content units: matched spans count once; other tokens count if not punctuation / stopword
         covered = {j for s, e, *_ in matches for j in range(s, e)}
@@ -155,7 +222,7 @@ class LexiconEngine(Engine):
                 engine=self.name, version=self.version,
                 vad=VAD(valence=0.0, arousal=0.0, dominance=0.0, std=(1.0, 1.0, 1.0)),
                 emotions={"neutral": 1.0}, confidence=0.05, coverage=0.0,
-                features={"n_matched": 0, "n_negated": 0, "matched": []},
+                features={"n_matched": 0, "n_negated": 0, "matched": [], "clause_weights_applied": False},
             )
 
         if rows:
@@ -186,5 +253,6 @@ class LexiconEngine(Engine):
         return EngineOutput(
             engine=self.name, version=self.version, vad=vad, emotions=emotions,
             confidence=float(min(1.0, max(0.05, confidence))), coverage=float(coverage),
-            features={"matched": top, "n_matched": n_matched, "n_negated": int(n_negated)},
+            features={"matched": top, "n_matched": n_matched, "n_negated": int(n_negated),
+                      "clause_weights_applied": clause_applied},
         )

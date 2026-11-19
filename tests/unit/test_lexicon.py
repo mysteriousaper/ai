@@ -20,7 +20,7 @@ def test_parquet_schema():
 
 def test_single_match_and_features():
     out = run("I am happy")
-    assert out.engine == "lexicon" and out.version == "0.1.0"
+    assert out.engine == "lexicon" and out.version == "0.2.0"
     assert out.vad.valence > 0.5
     assert out.features["n_matched"] == 1 and out.features["matched"][0]["term"] == "happy"
     assert out.emotions["joy"] > 0
@@ -29,7 +29,7 @@ def test_single_match_and_features():
 
 def test_multiword_longest_match():
     assert "a bit" in _load() or "give up" in _load()
-    out = run("I want to give up")
+    out = run("I am a bit tired")  # "want to" is a light-verb frame, not a mood phrase
     terms = [f["term"] for f in out.features["matched"]]
     assert any(" " in t for t in terms)
 
