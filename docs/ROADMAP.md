@@ -46,23 +46,23 @@ Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 - [x] VAD head: ridge on frozen embeddings → EmoBank (cheap); fine-tune DistilRoBERTa only if time allows (background, 5k rows first)
 - [x] Behavioural tests (shared suite from Session 1) → `eval/reports/transformer.md`
 
-## Session 3: engine F (semantic map)
-- [ ] `scripts/build_cluster_map.py`: MiniLM embeddings (GoEmotions train) → UMAP → HDBSCAN → agglomerative over centroids
-- [ ] Label each node (dominant emotions + top words); purity / NMI vs labels; seed stability
-- [ ] Engine: nearest leaf + path + k nearest neighbourhoods → `eval/reports/semantic_cluster.md`
-- [ ] Fit UMAP/HDBSCAN once offline and save artifacts; assign new messages by nearest prototype (never refit per request)
-- [ ] K-means baseline for comparison
-- [ ] c-TF-IDF + representative phrases for node names
-- [ ] Soft membership; stability across seeds
-- [ ] Standardize/weight before any feature concatenation (a 384-D embedding must not drown VAD)
+## Session 3: engine F (semantic map), done 2026-11-19 (v0.2 emotion-space)
+- [x] `scripts/build_cluster_map.py`: MiniLM embeddings (GoEmotions train) → UMAP → HDBSCAN → agglomerative over centroids
+- [x] Label each node (dominant emotions + top words); purity / NMI vs labels; seed stability
+- [x] Engine: nearest leaf + path + k nearest neighbourhoods → `eval/reports/semantic_cluster.md`
+- [x] Fit UMAP/HDBSCAN once offline and save artifacts; assign new messages by nearest prototype (never refit per request)
+- [x] K-means baseline for comparison
+- [x] c-TF-IDF + representative phrases for node names
+- [x] Soft membership; stability across seeds
+- [x] Standardize/weight before any feature concatenation (a 384-D embedding must not drown VAD)
 
-## Session 4: engine E (appraisal, local)
-- [ ] Zero-shot NLI over the 16 event types + 7 needs + agent (multilingual MiniLM)
-- [ ] Fallback classifier: DistilRoBERTa on EmpatheticDialogues prompts → event type (5k subset first)
-- [ ] Evidence spans (sentence with the highest entailment); merge safety with `engine/safety.py`
-- [ ] Claude API path: stub, off by default
-- [ ] Evaluate on the ED test split → `eval/reports/appraisal.md`
-- [ ] Use `clauses.py`: desired state from desire clauses, experiencer attribution, temporal weighting; explicit user correction overrides inference
+## Session 4: engine E (appraisal, local), done 2026-11-19
+- [x] Zero-shot NLI over the 16 event types + 7 needs + agent (multilingual MiniLM)
+- [x] Fallback classifier: DistilRoBERTa on EmpatheticDialogues prompts → event type (5k subset first)
+- [x] Evidence spans (sentence with the highest entailment); merge safety with `engine/safety.py`
+- [x] Claude API path: stub, off by default
+- [x] Evaluate on the ED test split → `eval/reports/appraisal.md`
+- [x] Use `clauses.py`: desired state from desire clauses, experiencer attribution, temporal weighting; explicit user correction overrides inference
 
 ## Session 5: engine D (keystrokes), needs EmoSurv CSVs from you
 - [ ] Feature extractor (speed, dwell, flight, pauses > 2 s, backspace ratio, bursts, time to first key)

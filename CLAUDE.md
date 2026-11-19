@@ -1,6 +1,6 @@
 # Emotion Engine: working rules
 
-Brief: `PROJECT_BRIEF.md`. Product/demo name: **Wiymood AI** (use it in the UI, API title and reports). State: Phases 0–2 done; Session 1 done (eval/metrics.py, eval/datasets.py, engines A lexicon + C stylometric; Session 2 done: engine B transformer (ONNX int8), schema v0.2, clauses.py, eval/challenge_set.jsonl; reports in eval/reports/). In a fresh container run `uv run python scripts/build_lexicons.py && uv run python scripts/train_stylometric.py && uv run python scripts/tune_transformer.py` once (data/processed is git-ignored). Next: see `docs/ROADMAP.md` (task list per session).
+Brief: `PROJECT_BRIEF.md`. Product/demo name: **Wiymood AI** (use it in the UI, API title and reports). State: Phases 0–2 done; Session 1 done (eval/metrics.py, eval/datasets.py, engines A lexicon + C stylometric; Session 2 done: engine B transformer (ONNX int8), schema v0.2, clauses.py, eval/challenge_set.jsonl; Sessions 3–4 done: engine F v0.2 (emotion-space map), engine E (local appraisal), lexicon v0.2 (clause-aware); reports in eval/reports/). In a fresh container run `uv run python scripts/build_lexicons.py && uv run python scripts/train_stylometric.py && uv run python scripts/tune_transformer.py && uv run python scripts/build_cluster_map.py v2 && uv run python scripts/train_appraisal_fallback.py` once (data/processed is git-ignored). Next: see `docs/ROADMAP.md` (task list per session).
 
 ## Zero money
 - No paid APIs, licences or compute. Engine E (appraisal) is **local only**: a zero-shot NLI model (`MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli`, MIT) plus a DistilRoBERTa classifier on EmpatheticDialogues. Keep the Claude API path as an optional, off-by-default stub.
@@ -8,7 +8,8 @@ Brief: `PROJECT_BRIEF.md`. Product/demo name: **Wiymood AI** (use it in the UI, 
 
 ## Token budget (≤ 20% of a session per phase)
 - One phase (or one engine) per session; start fresh sessions instead of growing one long chat. Read this file + only the files you will edit.
-- No web research, no subagents, and don't load skill docs unless a task is blocked.
+- No web research and don't load skill docs unless blocked. **User preference: delegate engine work to cheap background subagents (Haiku for well-specified tasks, Sonnet for engines), disjoint files per agent, no commits by agents; the main session reviews, tests and commits.**
+- Run eval scripts as modules (`uv run python -m eval.eval_x`): eval/datasets.py shadows HF `datasets` when run by path.
 - Batch work: write whole files in one call, run commands chained in one call, pipe output through `tail`/`grep`, run pytest with `-q`.
 - Never print datasets or large files; inspect with `head`, `shape`, or summaries.
 - Train on subsets first (e.g. 5k GoEmotions rows, 1 epoch) and run full training once, in the background, logging to a file.
