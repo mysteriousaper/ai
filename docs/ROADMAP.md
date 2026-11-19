@@ -40,11 +40,11 @@ Start prompt: `Read CLAUDE.md and docs/ROADMAP.md. Do Session 1.`
 - [ ] Lexicon engine: down-weight past-tense and other-experiencer clauses using `engine/preprocessing/clauses.py`
 - [x] Schema v0.2, `clauses.py`, `eval/challenge_set.jsonl` + `eval/challenge.py` (added after Session 1)
 
-## Session 2: engine B (transformer)
-- [ ] Wrap `SamLowe/roberta-base-go_emotions` (v0); per-label thresholds tuned on validation
-- [ ] GoEmotions test: macro/micro F1, ROC-AUC, CIs; latency per message on CPU
-- [ ] VAD head: ridge on frozen embeddings → EmoBank (cheap); fine-tune DistilRoBERTa only if time allows (background, 5k rows first)
-- [ ] Behavioural tests (shared suite from Session 1) → `eval/reports/transformer.md`
+## Session 2: engine B (transformer), done 2026-11-19
+- [x] Wrap `SamLowe/roberta-base-go_emotions` (v0); per-label thresholds tuned on validation
+- [x] GoEmotions test: macro/micro F1, ROC-AUC, CIs; latency per message on CPU
+- [x] VAD head: ridge on frozen embeddings → EmoBank (cheap); fine-tune DistilRoBERTa only if time allows (background, 5k rows first)
+- [x] Behavioural tests (shared suite from Session 1) → `eval/reports/transformer.md`
 
 ## Session 3: engine F (semantic map)
 - [ ] `scripts/build_cluster_map.py`: MiniLM embeddings (GoEmotions train) → UMAP → HDBSCAN → agglomerative over centroids

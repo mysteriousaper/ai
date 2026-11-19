@@ -26,6 +26,7 @@ dependencies = [
     "trackio>=0.1",
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "empath>=0.89",
+    "onnxruntime>=1.32.0",
 ]
 
 [dependency-groups]

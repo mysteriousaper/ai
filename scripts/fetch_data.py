@@ -113,6 +113,7 @@ MODEL_IDS = {
     "sentence-transformers/all-MiniLM-L6-v2": ("Apache-2.0", "commercial-OK", "Engine F English embeddings"),
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": ("Apache-2.0", "commercial-OK", "Engine F multilingual embeddings (ru/hy)"),
     "distilroberta-base": ("Apache-2.0", "commercial-OK", "Backbone for our own fine-tune + VAD head"),
+    "SamLowe/roberta-base-go_emotions-onnx": ("MIT", "commercial-OK", "Engine B fast backend (int8 ONNX, ~10 ms/msg)"),
     "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli": ("MIT", "commercial-OK", "Engine E local zero-shot appraisal (multilingual)"),
 }
 
@@ -182,7 +183,7 @@ def fetch_models() -> list[dict]:
     for mid, (lic, status, role) in MODEL_IDS.items():
         dest = MODELS / mid.replace("/", "__")
         print(f"  model  {mid}")
-        snapshot_download(mid, local_dir=dest, allow_patterns=["*.json", "*.safetensors", "*.txt", "*.model", "merges.txt", "vocab*", "1_Pooling/*", "modules.json"])
+        snapshot_download(mid, local_dir=dest, allow_patterns=["*.json", "*.safetensors", "*.txt", "*.model", "merges.txt", "vocab*", "1_Pooling/*", "modules.json", "onnx/model_quantized.onnx"])
         out.append({"model": mid, "path": str(dest.relative_to(ROOT)), "licence": lic, "status": status, "role": role})
     return out
 
